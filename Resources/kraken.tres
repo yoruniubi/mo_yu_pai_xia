@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://Assets/Images/Sea_monster.png" id="1_kraken"]
+[ext_resource type="Script" path="res://Scripts/character_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+character_name = "墨里 (Inkwell)"
+job_title = "饮水机之主"
+race = "深渊克拉肯"
+character_image = ExtResource("1_kraken")
+core_emojis = "🐙, 🌊, 💩"
+combo_style = "控制闪避流"
+description = "利用墨雾和“潜水”让敌人攻击落空，通过持续伤害折磨对手。"
+card_pool = [{
+"cost": 1,
+"description": "获得 8 点防御。若本回合触发过 💩，防御翻倍",
+"emoji": "🌊",
+"name": "墨水屏障",
+"type": "defense_ink",
+"value": 8
+}, {
+"cost": 2,
+"description": "本回合受到伤害减半。下回合抽牌+1",
+"emoji": "💨",
+"name": "深海潜水",
+"type": "buff_evasion",
+"value": 50
+}, {
+"cost": 1,
+"description": "降低老板 3 点攻击力，持续 1 回合",
+"emoji": "🐙",
+"name": "章鱼缠绕",
+"type": "debuff_atk",
+"value": 3
+}, {
+"cost": 1,
+"description": "偷取敌人 5 点耐性值，转化为自身防御",
+"emoji": "🐙",
+"name": "本命核心：触手",
+"type": "attack_steal",
+"value": 5
+}]

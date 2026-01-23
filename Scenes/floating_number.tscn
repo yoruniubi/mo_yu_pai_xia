@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://c670y3by6y5qp"]
+
+[ext_resource type="Script" uid="uid://cg4tjmtlbpih2" path="res://Scripts/FloatingNumber.gd" id="1_script"]
+
+[node name="FloatingNumber" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_script")

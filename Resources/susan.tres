@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://Assets/Images/medusa.png" id="1_medusa"]
+[ext_resource type="Script" path="res://Scripts/character_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+character_name = "苏珊 (Susan)"
+job_title = "HR 审判官"
+race = "美杜莎"
+character_image = ExtResource("1_medusa")
+core_emojis = "📋, ❌"
+combo_style = "规则制裁流"
+description = "通过施加“面试禁令”和“待岗”状态，让敌人攻击时受到反震。"
+card_pool = [{
+"cost": 2,
+"description": "消除老板当前的意图图标 (使其本回合发呆)",
+"emoji": "❌",
+"name": "面试拒信",
+"type": "cancel_intent",
+"value": 0
+}, {
+"cost": 1,
+"description": "抽取 3 张牌，只保留消耗为 1AP 的卡",
+"emoji": "📋",
+"name": "简历筛选",
+"type": "filter_cards",
+"value": 3
+}, {
+"cost": 1,
+"description": "下一回合玩家不行动，但获得 20 点超高防御",
+"emoji": "⏳",
+"name": "待岗警告",
+"type": "wait_defense",
+"value": 20
+}, {
+"cost": 1,
+"description": "反弹本回合受到的第一次伤害",
+"emoji": "📋",
+"name": "本命核心：简历",
+"type": "reflect_damage",
+"value": 1
+}]

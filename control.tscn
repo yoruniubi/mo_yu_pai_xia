@@ -1,0 +1,107 @@
+[gd_scene load_steps=4 format=3 uid="uid://cop88vb2g0boh"]
+
+[ext_resource type="Script" path="res://control.gd" id="1_0fbet"]
+[ext_resource type="Resource" path="res://squirrel.tres" id="2_62e2m"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card"]
+bg_color = Color(0.0784314, 0.0784314, 0.0784314, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.313726, 0.313726, 0.313726, 1)
+corner_radius_top_left = 15
+corner_radius_top_right = 15
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
+shadow_color = Color(0, 0, 0, 0.117647)
+shadow_size = 8
+shadow_offset = Vector2(0, 4)
+
+[node name="card" type="Control"]
+custom_minimum_size = Vector2(220, 340)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 220.0
+offset_bottom = 340.0
+script = ExtResource("1_0fbet")
+character_data = ExtResource("2_62e2m")
+
+[node name="Visual" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset = Vector2(110, 170)
+mouse_filter = 2
+
+[node name="Panel" type="Panel" parent="Visual"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="HeroImage" type="TextureRect" parent="Visual"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -110.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="InfoContainer" type="VBoxContainer" parent="Visual"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -110.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="NameLabel" type="Label" parent="Visual/InfoContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "Name"
+horizontal_alignment = 1
+
+[node name="JobLabel" type="Label" parent="Visual/InfoContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.705882, 0.705882, 0.705882, 1)
+theme_override_font_sizes/font_size = 14
+text = "Job"
+horizontal_alignment = 1
+
+[node name="EmojiLabel" type="Label" parent="Visual/InfoContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "🔥💣"
+horizontal_alignment = 1
+
+[node name="StyleLabel" type="Label" parent="Visual/InfoContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.843137, 0, 1)
+theme_override_font_sizes/font_size = 12
+text = "Style"
+horizontal_alignment = 1
+
+[connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="." to="." method="_on_mouse_exited"]
