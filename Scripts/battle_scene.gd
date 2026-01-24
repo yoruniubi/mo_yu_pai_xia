@@ -29,6 +29,7 @@ var discard_pile = []
 
 # 战斗数值
 var hero_hp = 100
+var hero_shield = 0
 var enemy_hp = 100
 var current_ap = 3
 
@@ -46,6 +47,7 @@ var enemy_atk_reduction = 0
 var enemy_vulnerability = 0 # 敌人受到的额外伤害
 var skip_enemy_turn = false
 var next_turn_extra_draws = 0
+var next_turn_extra_ap = 0
 
 # 当前激活的连招池
 var active_combos = {}
@@ -102,6 +104,13 @@ func _ready():
 func update_ui_values():
 	hero_hp_bar.value = hero_hp
 	enemy_hp_bar.value = enemy_hp
+	
+	# 更新护盾显示
+	if hero_shield > 0:
+		hero_name_label.text = "%s 🛡️%d" % [GameManager.selected_hero.character_name if GameManager.selected_hero else "英雄", hero_shield]
+	else:
+		hero_name_label.text = GameManager.selected_hero.character_name if GameManager.selected_hero else "英雄"
+		
 	energy_label.text = "摸鱼力: %d/%d" % [current_ap, GameManager.max_ap]
 	
 	# 如果当前 AP 超过上限（临时 AP），改变颜色提醒
@@ -128,7 +137,8 @@ func setup_button_style():
 	btn.add_theme_color_override("font_color", Color.WHITE)
 	
 	btn.pressed.connect(_on_end_turn_pressed)
-	go_to_boss_button.pressed.connect(_on_go_to_boss_pressed)
+	# 移除挑战 Boss 按钮，改为隐藏
+	go_to_boss_button.hide()
 	next_level_button.pressed.connect(_on_next_level_pressed)
 	restart_button.pressed.connect(_on_restart_pressed)
 	if has_node("%ComboDirectoryButton"):
@@ -141,9 +151,6 @@ func _on_restart_pressed():
 
 func _on_next_level_pressed():
 	GameManager.advance_level()
-
-func _on_go_to_boss_pressed():
-	get_tree().change_scene_to_file("res://Scenes/boss_stage.tscn")
 
 func _create_style(color_hex: String, radius: int, shadow: int) -> StyleBoxFlat:
 	var sb = StyleBoxFlat.new()
@@ -206,24 +213,24 @@ func enemy_turn():
 			var val = last_player_card_data.get("value", 5)
 			print("鹦鹉复制了你的行为！")
 			if type == "attack" or type == "attack_draw" or type == "attack_fire" or type == "attack_seed":
-				apply_damage_to_hero(val)
+				apply_damage_to_hero(val * 1.5) # 鹦鹉复制伤害更高
 			elif type == "defense" or type == "defense_ink":
 				apply_damage_to_enemy(-val) # 相当于回血
 			else:
-				apply_damage_to_hero(10)
+				apply_damage_to_hero(15)
 		else:
-			apply_damage_to_hero(10)
+			apply_damage_to_hero(15)
 	elif "刺猬" in enemy_name:
 		print("刺猬发动连击！")
 		for i in range(3):
-			apply_damage_to_hero(6)
+			apply_damage_to_hero(8)
 			await get_tree().create_timer(0.2).timeout
 	elif "树懒" in enemy_name:
-		apply_damage_to_hero(12)
+		apply_damage_to_hero(18)
 		print("树懒塞入了垃圾卡...")
 		inject_junk_card("meeting")
 	elif "监控猿" in enemy_name:
-		apply_damage_to_hero(15)
+		apply_damage_to_hero(25)
 		# 锁定逻辑简化：随机弃掉一张手牌
 		if hand_cards.size() > 0:
 			var idx = randi() % hand_cards.size()
@@ -233,10 +240,16 @@ func enemy_turn():
 			print("监控猿锁定了你的一张牌！")
 	elif "蜘蛛" in enemy_name:
 		print("画饼蜘蛛发动了【虚假目标】！")
-		apply_damage_to_hero(18)
+		apply_damage_to_hero(30)
 		inject_junk_card("goal")
+	elif "CEO" in enemy_name:
+		print("CEO 释放了【KPI 考核】！")
+		apply_damage_to_hero(45)
+		inject_junk_card("kpi")
+		# 额外效果：减少玩家 1 点 AP，持续一回合
+		next_turn_extra_ap -= 1
 	else:
-		var damage = 10 + (GameManager.current_level * 2)
+		var damage = 10 + (GameManager.current_level * 3)
 		# 应用攻击削减
 		damage = max(0, damage - enemy_atk_reduction)
 		enemy_atk_reduction = 0 # 重置
@@ -266,8 +279,15 @@ func show_game_over():
 
 func start_player_turn():
 	end_turn_button.disabled = false
-	current_ap = GameManager.max_ap
+	current_ap = GameManager.max_ap + next_turn_extra_ap
+	next_turn_extra_ap = 0
 	poop_played_this_turn = false
+	
+	# 回合开始重置护盾
+	hero_shield = 0
+	
+	# 更新敌人意图
+	_update_enemy_intent()
 	
 	# 处理多回合状态
 	if has_meta("evasion_turns"):
@@ -322,6 +342,21 @@ func apply_damage_to_hero(amount: int):
 	if is_evading:
 		final_damage /= 2
 	
+	# 优先扣除护盾
+	if hero_shield > 0:
+		if hero_shield >= final_damage:
+			hero_shield -= final_damage
+			spawn_floating_number(final_damage, false, hero_sprite.global_position + Vector2(0, -50), Color.CYAN)
+			final_damage = 0
+		else:
+			final_damage -= hero_shield
+			spawn_floating_number(hero_shield, false, hero_sprite.global_position + Vector2(0, -50), Color.CYAN)
+			hero_shield = 0
+	
+	if final_damage <= 0:
+		update_ui_values()
+		return
+
 	if has_reflect_shield:
 		var multiplier = get_meta("reflect_multiplier") if has_meta("reflect_multiplier") else 1
 		apply_damage_to_enemy(final_damage * multiplier)
@@ -515,23 +550,43 @@ func update_status_display():
 	for child in status_container.get_children():
 		child.queue_free()
 	
+	# 玩家状态
+	if hero_shield > 0:
+		_add_status_badge("🛡️ 护盾: %d" % hero_shield, Color.CYAN)
 	if is_evading:
-		_add_status_label("💨 闪避", Color.CYAN)
+		_add_status_badge("💨 闪避", Color.CYAN)
 	if keyboard_buff_active:
-		_add_status_label("⌨️ 键盘侠", Color.ORANGE)
+		_add_status_badge("⌨️ 键盘侠", Color.ORANGE)
 	if has_reflect_shield:
-		_add_status_label("🛡️ 反伤", Color.PURPLE)
+		_add_status_badge("🛡️ 反伤", Color.PURPLE)
 	if false_hope_stacks > 0:
-		_add_status_label("🍞 希望 x%d" % false_hope_stacks, Color.YELLOW)
+		_add_status_badge("🍞 希望 x%d" % false_hope_stacks, Color.YELLOW)
+	
+	# 敌人状态 (醒目标注)
 	if enemy_fire_stacks > 0:
-		_add_status_label("🔥 敌火 x%d" % enemy_fire_stacks, Color.RED)
+		_add_status_badge("BOSS: 🔥 火大 x%d" % enemy_fire_stacks, Color.RED)
+	if enemy_vulnerability > 0:
+		_add_status_badge("BOSS: 💔 易伤 +%d" % enemy_vulnerability, Color.CORAL)
+	if enemy_atk_reduction > 0:
+		_add_status_badge("BOSS: 📉 虚弱 -%d" % enemy_atk_reduction, Color.DARK_GRAY)
 
-func _add_status_label(text: String, color: Color):
+func _add_status_badge(text: String, color: Color):
+	var panel = PanelContainer.new()
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(color.r, color.g, color.b, 0.25)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.border_width_left = 1
+	style.border_color = color
+	panel.add_theme_stylebox_override("panel", style)
+	
 	var label = Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_font_size_override("font_size", 16)
 	label.add_theme_color_override("font_color", color)
-	status_container.add_child(label)
+	panel.add_child(label)
+	status_container.add_child(panel)
 
 func update_emoji_slots():
 	for child in %EmojiSlot.get_children():
@@ -637,6 +692,16 @@ func trigger_combo(combo_data):
 			is_waiting_next_turn = false
 			next_turn_extra_draws += 2
 			print("带薪休假：取消待岗状态，下回合额外抽 2 张牌")
+		"slack_trio":
+			for i in range(2): draw_card()
+			current_ap += 1
+		"office_slicker":
+			is_evading = true
+			set_meta("evasion_turns", 2)
+		"paid_gym":
+			apply_heal_to_hero(10)
+			GameManager.max_player_hp += 5
+			hero_hp_bar.max_value = GameManager.max_player_hp
 
 func show_combo_directory():
 	var combo_text = "--- 摸鱼连招秘籍 ---\n\n"
@@ -661,17 +726,29 @@ func execute_card_effect(data: Dictionary):
 				dmg *= 3
 			apply_damage_to_enemy(dmg)
 		"defense":
-			apply_heal_to_hero(value)
+			apply_shield_to_hero(value)
 		"attack_draw":
 			apply_damage_to_enemy(value)
 			draw_card()
-		"buff_ap":
+		"buff_ap", "temp_ap":
 			current_ap += value
+		"buff_ap_draw":
+			current_ap += value
+			draw_card()
+		"next_turn_ap":
+			next_turn_extra_ap += value
+			print("获得下回合额外 AP: ", value)
 		"special_poop":
 			poop_played_this_turn = true
 			draw_card()
 		"sleep", "bread":
 			draw_card()
+		"draw_only":
+			for i in range(value):
+				draw_card()
+		"defense_attack":
+			apply_heal_to_hero(value)
+			apply_damage_to_enemy(value)
 		"attack_fire":
 			apply_damage_to_enemy(value)
 			enemy_fire_stacks += 1
@@ -905,6 +982,47 @@ func apply_heal_to_hero(amount: int):
 	spawn_floating_number(amount, false, hero_sprite.global_position + Vector2(0, -50), Color.GREEN)
 	update_ui_values()
 	update_status_display()
+
+func apply_shield_to_hero(amount: int):
+	hero_shield += amount
+	spawn_floating_number(amount, false, hero_sprite.global_position + Vector2(0, -50), Color.CYAN)
+	update_ui_values()
+	update_status_display()
+
+func _update_enemy_intent():
+	var enemy = GameManager.get_current_enemy()
+	var base_dmg = 10 + (GameManager.current_level * 3)
+	
+	# 清除之前的警告样式
+	intent_label.remove_theme_color_override("font_color")
+	intent_label.scale = Vector2.ONE
+	if intent_label.has_meta("pulse_tween"):
+		var old_tween = intent_label.get_meta("pulse_tween")
+		if old_tween: old_tween.kill()
+	
+	if "鹦鹉" in enemy.name:
+		intent_label.text = "意图: 📝 复制"
+	elif "刺猬" in enemy.name:
+		intent_label.text = "意图: ⚔️ 8 x 3 (24)"
+	elif "树懒" in enemy.name:
+		intent_label.text = "意图: 💤 18 + 📄"
+	elif "监控猿" in enemy.name:
+		intent_label.text = "意图: 👁️ 25 + 🔒"
+	elif "蜘蛛" in enemy.name:
+		intent_label.text = "意图: 🕸️ 30 + 🕸️"
+		intent_label.add_theme_color_override("font_color", Color.ORANGE_RED)
+	elif "CEO" in enemy.name:
+		intent_label.text = "意图: 🦁 45 + 📉 (致命)"
+		intent_label.add_theme_color_override("font_color", Color.RED)
+		# 危险警告动画
+		var t = create_tween().set_loops()
+		t.tween_property(intent_label, "scale", Vector2(1.15, 1.15), 0.4).set_trans(Tween.TRANS_SINE)
+		t.tween_property(intent_label, "scale", Vector2(1.0, 1.0), 0.4).set_trans(Tween.TRANS_SINE)
+		intent_label.set_meta("pulse_tween", t)
+	else:
+		intent_label.text = "意图: ⚔️ %d" % base_dmg
+		if base_dmg >= 25:
+			intent_label.add_theme_color_override("font_color", Color.ORANGE)
 
 func spawn_floating_number(amount: int, is_critical: bool, pos: Vector2, color: Color = Color.WHITE):
 	var fn = floating_number_scene.instantiate()

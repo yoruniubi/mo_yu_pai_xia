@@ -7,9 +7,132 @@ extends Control
 
 func _ready():
 	next_button.hide()
+	_setup_ui_styles()
+	_create_floating_decorations()
 	if has_node("%ResignationBar"):
 		%ResignationBar.value = GameManager.current_level
+	
+	# 初始动画：全屏淡入
+	modulate.a = 0
+	var t = create_tween()
+	t.tween_property(self, "modulate:a", 1.0, 0.5)
+	
 	setup_event()
+
+func _create_floating_decorations():
+	# 创建装饰容器
+	var deco_container = Control.new()
+	deco_container.name = "Decorations"
+	deco_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(deco_container)
+	move_child(deco_container, 1) # 放在 Background 之后
+	
+	var items = [
+		"res://Assets/Images/coffee_cup.png",
+		"res://Assets/Images/咸鱼.png",
+		"res://Assets/Images/奶茶.png",
+		"res://Assets/Images/小零食.png"
+	]
+	
+	for i in range(8):
+		var sprite = Sprite2D.new()
+		var img_path = items[randi() % items.size()]
+		if FileAccess.file_exists(img_path):
+			sprite.texture = load(img_path)
+		else:
+			continue
+			
+		sprite.modulate.a = 0.3 # 半透明
+		sprite.scale = Vector2(0.5, 0.5)
+		deco_container.add_child(sprite)
+		
+		# 随机初始位置
+		var screen = get_viewport_rect().size
+		sprite.position = Vector2(randf_range(0, screen.x), randf_range(0, screen.y))
+		
+		# 浮动动画
+		_animate_float(sprite)
+
+func _animate_float(node: Node2D):
+	var screen = get_viewport_rect().size
+	var target_pos = Vector2(randf_range(0, screen.x), randf_range(0, screen.y))
+	var duration = randf_range(10.0, 20.0)
+	var rot = randf_range(-PI, PI)
+	
+	var t = create_tween().set_parallel(true).set_loops()
+	t.tween_property(node, "position", target_pos, duration).set_trans(Tween.TRANS_SINE)
+	t.tween_property(node, "rotation", rot, duration).set_trans(Tween.TRANS_SINE)
+
+func _setup_ui_styles():
+	# 添加暗角效果
+	var vignette = TextureRect.new()
+	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var grad = Gradient.new()
+	grad.set_color(0, Color(0, 0, 0, 0))
+	grad.set_color(1, Color(0, 0, 0, 0.15))
+	var tex = GradientTexture2D.new()
+	tex.gradient = grad
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(1.0, 1.0)
+	vignette.texture = tex
+	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	add_child(vignette)
+	move_child(vignette, 2) # 放在背景和装饰之后
+
+	# 标题美化
+	title_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.1))
+	title_label.add_theme_constant_override("shadow_offset_x", 2)
+	title_label.add_theme_constant_override("shadow_offset_y", 2)
+	title_label.add_theme_constant_override("shadow_outline_size", 5)
+
+	# 描述美化
+	description_label.add_theme_color_override("font_color", Color("#5d5d5d"))
+	
+	# 美化进度条
+	if has_node("%ResignationBar"):
+		var bar = %ResignationBar
+		var sb_bg = StyleBoxFlat.new()
+		sb_bg.bg_color = Color("#e0dcc8")
+		sb_bg.set_corner_radius_all(8)
+		sb_bg.expand_margin_top = 2
+		sb_bg.expand_margin_bottom = 2
+		bar.add_theme_stylebox_override("background", sb_bg)
+		
+		var sb_fg = StyleBoxFlat.new()
+		sb_fg.bg_color = Color("#8fb9aa") # 奶油绿
+		sb_fg.set_corner_radius_all(8)
+		bar.add_theme_stylebox_override("fill", sb_fg)
+		
+		if bar.has_node("ResignationLabel"):
+			var label = bar.get_node("ResignationLabel")
+			label.add_theme_color_override("font_color", Color("#7a7a7a"))
+			label.text = "— 离职进度 %d/10 —" % GameManager.current_level
+
+	# 美化 NextButton
+	var btn_style = _create_button_style("#4a4a4a", "#666666")
+	next_button.add_theme_stylebox_override("normal", btn_style.normal)
+	next_button.add_theme_stylebox_override("hover", btn_style.hover)
+	next_button.add_theme_stylebox_override("pressed", btn_style.pressed)
+	next_button.add_theme_color_override("font_color", Color.WHITE)
+
+func _create_button_style(color_hex: String, hover_hex: String) -> Dictionary:
+	var normal = StyleBoxFlat.new()
+	normal.bg_color = Color(color_hex)
+	normal.set_corner_radius_all(15)
+	normal.shadow_size = 4
+	normal.shadow_offset = Vector2(0, 2)
+	
+	var hover = normal.duplicate()
+	hover.bg_color = Color(hover_hex)
+	hover.shadow_size = 6
+	
+	var pressed = normal.duplicate()
+	pressed.bg_color = Color("#222222")
+	pressed.shadow_size = 0
+	
+	return {"normal": normal, "hover": hover, "pressed": pressed}
 
 func setup_event():
 	var level = GameManager.current_level
@@ -130,17 +253,56 @@ func setup_desk_organizing():
 func add_option(text: String, callback: Callable):
 	var btn = Button.new()
 	btn.text = text
-	btn.custom_minimum_size = Vector2(400, 80)
+	btn.custom_minimum_size = Vector2(450, 90)
 	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	btn.pressed.connect(callback)
+	
+	# 应用奶油色调按钮样式
+	var styles = _create_button_style("#fdf5e6", "#fffaf0") # 奶油白/米色
+	btn.add_theme_stylebox_override("normal", styles.normal)
+	btn.add_theme_stylebox_override("hover", styles.hover)
+	btn.add_theme_stylebox_override("pressed", styles.pressed)
+	btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+	btn.add_theme_color_override("font_hover_color", Color("#222222"))
+	btn.add_theme_font_size_override("font_size", 24)
+	
+	btn.pressed.connect(func():
+		# 点击反馈动画
+		var t = create_tween()
+		t.tween_property(btn, "scale", Vector2(0.95, 0.95), 0.05)
+		t.tween_property(btn, "scale", Vector2(1.0, 1.0), 0.05)
+		t.finished.connect(callback)
+	)
+	
 	option_container.add_child(btn)
+	
+	# 选项进入动画
+	btn.modulate.a = 0
+	btn.position.x += 50
+	var t = create_tween().set_parallel(true)
+	t.tween_property(btn, "modulate:a", 1.0, 0.4).set_delay(option_container.get_child_count() * 0.1)
+	t.tween_property(btn, "position:x", btn.position.x - 50, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(option_container.get_child_count() * 0.1)
 
 func finish_event(msg: String):
 	description_label.text = msg
+	# 文字切换动画
+	description_label.modulate.a = 0
+	var lt = create_tween()
+	lt.tween_property(description_label, "modulate:a", 1.0, 0.5)
+	
 	for child in option_container.get_children():
 		child.queue_free()
+		
 	next_button.show()
 	next_button.text = "继续离职之路"
+	
+	# NextButton 出现动画
+	next_button.modulate.a = 0
+	next_button.scale = Vector2(0.8, 0.8)
+	next_button.pivot_offset = next_button.size / 2
+	var bt = create_tween().set_parallel(true)
+	bt.tween_property(next_button, "modulate:a", 1.0, 0.5)
+	bt.tween_property(next_button, "scale", Vector2(1.0, 1.0), 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	
 	if not next_button.pressed.is_connected(_on_next_pressed):
 		next_button.pressed.connect(_on_next_pressed)
 

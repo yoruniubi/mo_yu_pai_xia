@@ -143,8 +143,8 @@ func get_current_enemy():
 var universal_combos = {
 	"🤡🤡": {"name": "小丑竟是我自己", "parts": ["🤡", "🤡"], "effect": "伤害等同于已损失压力的 50%", "logic": "clown_self"},
 	"💩☕💤": {"name": "终极摸鱼", "parts": ["💩", "☕", "💤"], "effect": "恢复满 HP 且跳过老板回合", "logic": "ultimate_slack"},
-	"☕�💧": {"name": "摸鱼三件套", "parts": ["☕", "�", "💧"], "effect": "抽 3 张牌，摸鱼力 +1", "logic": "slack_trio"},
-	"🤡�🤡": {"name": "职场老油条", "parts": ["🤡", "�", "🤡"], "effect": "获得 2 回合减损闪避", "logic": "office_slicker"},
+	"☕💩💧": {"name": "摸鱼三件套", "parts": ["☕", "💩", "💧"], "effect": "抽 2 张牌，摸鱼力 +1", "logic": "slack_trio"},
+	"🤡💩🤡": {"name": "职场老油条", "parts": ["🤡", "💩", "🤡"], "effect": "获得 2 回合减损闪避", "logic": "office_slicker"},
 	"🏃💧💩": {"name": "带薪健身", "parts": ["🏃", "💧", "💩"], "effect": "回复 10 HP，本场战斗 HP 上限 +5", "logic": "paid_gym"}
 }
 
@@ -203,11 +203,13 @@ var universal_cards: Array = [
 	{"name": "键盘输出", "emoji": "⌨️", "cost": 1, "description": "造成 5 点伤害", "type": "attack", "value": 5},
 	{"name": "摸鱼喝水", "emoji": "💧", "cost": 1, "description": "获得 5 点防御 (减压)", "type": "defense", "value": 5},
 	{"name": "小丑自嘲", "emoji": "🤡", "cost": 1, "description": "造成 3 点伤害，抽 1 张牌", "type": "attack_draw", "value": 3},
-	{"name": "午后咖啡", "emoji": "☕", "cost": 2, "description": "本回合获得 1 点临时摸鱼力 (AP)", "type": "temp_ap", "value": 1},
+	{"name": "午后咖啡", "emoji": "☕", "cost": 0, "description": "获得 1 点摸鱼力 (AP) 并抽一张牌", "type": "buff_ap_draw", "value": 1},
 	{"name": "带薪拉屎", "emoji": "💩", "cost": 1, "description": "随机替换基础卡并抽一张", "type": "special_poop"},
 	{"name": "工位补觉", "emoji": "💤", "cost": 1, "description": "回复 5 HP，抽 1 张牌", "type": "heal_draw", "value": 5},
 	{"name": "老板画饼", "emoji": "🍞", "cost": 1, "description": "获得 5 点防御，抽 1 张牌", "type": "defense_draw", "value": 5},
-	{"name": "极限跃动", "emoji": "🏃", "cost": 1, "description": "抽 1 张牌，用于【带薪健身】连招", "type": "draw_only"}
+	{"name": "极限跃动", "emoji": "🏃", "cost": 1, "description": "抽 1 张牌，用于【带薪健身】连招", "type": "draw_only", "value": 1},
+	{"name": "灵光一闪", "emoji": "💡", "cost": 1, "description": "抽 2 张牌", "type": "draw_only", "value": 2},
+	{"name": "甩锅", "emoji": "🛡️", "cost": 1, "description": "获得 4 点防御并造成 4 点伤害", "type": "defense_attack", "value": 4}
 ]
 
 # 垃圾卡/诅咒卡定义
@@ -258,8 +260,8 @@ var evolution_data = {
 	},
 	"莱奥 (Leo)": {
 		"7": {
-			"A": {"name": "PPT流", "description": "强化 📊 记录效果，数值翻倍", "card": {"name": "精美PPT", "emoji": "📊", "cost": 1, "type": "record_data", "value": 2, "description": "记录上一张牌伤害的 2 倍"}},
-			"B": {"name": "资源流", "description": "强化 📈 释放效果，消耗降低", "card": {"name": "资源整合", "emoji": "📈", "cost": 1, "type": "release_data", "value": 2, "description": "释放 📊 记录的数值，消耗仅 1AP"}}
+			"A": {"name": "PPT流", "description": "强化 📊 记录效果，数值翻倍", "card": {"name": "精美PPT", "emoji": "📊", "cost": 2, "type": "record_data", "value": 2, "description": "记录上一张牌伤害的 2 倍"}},
+			"B": {"name": "资源流", "description": "强化 📈 释放效果，消耗降低", "card": {"name": "资源整合", "emoji": "📈", "cost": 2, "type": "release_data", "value": 2, "description": "释放 📊 记录的数值，消耗 2AP"}}
 		},
 		"8": {
 			"A": {"name": "全宇宙愿景", "description": "终极数据爆发", "card": {"name": "降维打击", "emoji": "🪐", "cost": 3, "type": "ultimate_vision", "value": 0, "description": "爆发所有记录数值，本回合所有卡牌 0 消耗"}}
