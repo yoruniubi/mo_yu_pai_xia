@@ -26,6 +26,7 @@ var current_sequence = []
 var last_player_card_data = {} # 记录玩家最后出的牌，供鹦鹉复制
 var draw_pile = []
 var discard_pile = []
+var is_battle_over = false # 战斗结束锁，防止重复触发胜利/失败
 
 # 战斗数值
 var hero_hp = 100
@@ -69,6 +70,10 @@ func _ready():
 		var hero = GameManager.selected_hero
 		hero_sprite.texture = hero.character_image
 		hero_name_label.text = hero.character_name
+		# 确保名字标签尺寸固定，防止内容变化引起血条上下抖动
+		hero_name_label.custom_minimum_size = Vector2(240, 40)
+		hero_name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		hero_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	
 	# 3. 初始化玩家 HP
 	hero_hp = GameManager.player_hp
@@ -105,11 +110,37 @@ func update_ui_values():
 	hero_hp_bar.value = hero_hp
 	enemy_hp_bar.value = enemy_hp
 	
-	# 更新护盾显示
+	# 修复“血条蹦迪”：使用带背景的 PanelContainer，视觉更稳固
+	var shield_display = hero_hp_bar.get_node_or_null("ShieldDisplay")
+	if not shield_display:
+		shield_display = PanelContainer.new()
+		shield_display.name = "ShieldDisplay"
+		var style = StyleBoxFlat.new()
+		style.bg_color = Color(0, 0.6, 0.7, 0.9) # 更亮一点的护盾青
+		style.set_corner_radius_all(10)
+		style.content_margin_left = 6
+		style.content_margin_right = 6
+		style.border_width_left = 2
+		style.border_color = Color.CYAN
+		shield_display.add_theme_stylebox_override("panel", style)
+		
+		var label = Label.new()
+		label.name = "Label"
+		label.add_theme_font_size_override("font_size", 18)
+		label.add_theme_color_override("font_color", Color.WHITE)
+		shield_display.add_child(label)
+		hero_hp_bar.add_child(shield_display)
+	
 	if hero_shield > 0:
-		hero_name_label.text = "%s 🛡️%d" % [GameManager.selected_hero.character_name if GameManager.selected_hero else "英雄", hero_shield]
+		shield_display.get_node("Label").text = "🛡️%d" % hero_shield
+		shield_display.show()
+		# 放在血条左侧固定位置
+		shield_display.position = Vector2(-70, -2) 
 	else:
-		hero_name_label.text = GameManager.selected_hero.character_name if GameManager.selected_hero else "英雄"
+		shield_display.hide()
+		
+	# 保持名字标签纯净，防止抖动
+	hero_name_label.text = GameManager.selected_hero.character_name if GameManager.selected_hero else "英雄"
 		
 	energy_label.text = "摸鱼力: %d/%d" % [current_ap, GameManager.max_ap]
 	
@@ -150,6 +181,7 @@ func _on_restart_pressed():
 	GameManager.load_current_level_scene()
 
 func _on_next_level_pressed():
+	next_level_button.disabled = true
 	GameManager.advance_level()
 
 func _create_style(color_hex: String, radius: int, shadow: int) -> StyleBoxFlat:
@@ -274,6 +306,8 @@ func inject_junk_card(type: String):
 	update_hand_layout()
 
 func show_game_over():
+	if is_battle_over: return
+	is_battle_over = true
 	end_turn_button.disabled = true
 	game_over_layer.visible = true
 
@@ -551,10 +585,9 @@ func update_status_display():
 		child.queue_free()
 	
 	# 玩家状态
-	if hero_shield > 0:
-		_add_status_badge("🛡️ 护盾: %d" % hero_shield, Color.CYAN)
+	# 移除重复的护盾显示，因为血条旁边已经有了
 	if is_evading:
-		_add_status_badge("💨 闪避", Color.CYAN)
+		_add_status_badge(" 闪避", Color.CYAN)
 	if keyboard_buff_active:
 		_add_status_badge("⌨️ 键盘侠", Color.ORANGE)
 	if has_reflect_shield:
@@ -725,8 +758,19 @@ func execute_card_effect(data: Dictionary):
 			if emoji == "⌨️" and keyboard_buff_active:
 				dmg *= 3
 			apply_damage_to_enemy(dmg)
-		"defense":
+		"heal":
+			apply_heal_to_hero(value)
+		"shield":
 			apply_shield_to_hero(value)
+		"shield_draw":
+			apply_shield_to_hero(value)
+			draw_card()
+		"shield_attack":
+			apply_shield_to_hero(value)
+			apply_damage_to_enemy(value - 2) # 甩锅伤害略低
+		"evasion_draw":
+			is_evading = true
+			draw_card()
 		"attack_draw":
 			apply_damage_to_enemy(value)
 			draw_card()
@@ -761,6 +805,7 @@ func execute_card_effect(data: Dictionary):
 				current_ap += 1
 		"attack_seed":
 			apply_damage_to_enemy(value)
+			apply_shield_to_hero(3) # 松果：提供少量热能护盾
 			if GameManager.selected_hero:
 				var fire_cards = GameManager.selected_hero.card_pool.filter(func(c): return c.get("emoji") == "🔥")
 				if fire_cards.size() > 0:
@@ -774,7 +819,7 @@ func execute_card_effect(data: Dictionary):
 					def *= 3
 				else:
 					def *= 2
-			apply_heal_to_hero(def)
+			apply_shield_to_hero(def) # 墨汁现在提供护盾
 		"buff_evasion":
 			is_evading = true
 			next_turn_extra_draws += value
@@ -783,7 +828,7 @@ func execute_card_effect(data: Dictionary):
 			print("敌人攻击力降低: ", value)
 		"attack_steal":
 			apply_damage_to_enemy(value)
-			apply_heal_to_hero(value)
+			apply_shield_to_hero(value) # 触手：偷取耐性转化为护盾
 		"record_data":
 			recorded_data_value = last_damage_dealt * (value if value > 0 else 1)
 			print("记录数值: ", recorded_data_value)
@@ -820,6 +865,7 @@ func execute_card_effect(data: Dictionary):
 			if value > 1:
 				set_meta("skip_next_intent", true)
 		"filter_cards":
+			var discarded_count = 0
 			for i in range(value):
 				var c = draw_card()
 				if c and c.card_data.get("cost", 1) > 1:
@@ -827,12 +873,16 @@ func execute_card_effect(data: Dictionary):
 					if c in hand_cards:
 						hand_cards.erase(c)
 						c.queue_free()
+						discarded_count += 1
 						update_hand_layout()
+			if discarded_count > 0:
+				apply_shield_to_hero(discarded_count * 3) # 图表：整理数据获得护盾
 		"wait_defense":
 			is_waiting_next_turn = true
-			apply_heal_to_hero(value)
+			apply_shield_to_hero(value) # 待岗提供护盾
 		"reflect_damage":
 			has_reflect_shield = true
+			apply_shield_to_hero(5) # 简历：反弹并提供基础防御
 		"attack_draw_specific":
 			apply_damage_to_enemy(value)
 			var target = data.get("target_emoji", "")
@@ -879,6 +929,7 @@ func execute_card_effect(data: Dictionary):
 			next_turn_extra_draws += 5
 
 func apply_damage_to_enemy(amount: int):
+	if is_battle_over: return
 	var final_dmg = amount
 	if enemy_vulnerability > 0:
 		final_dmg += enemy_vulnerability
@@ -895,12 +946,18 @@ func apply_damage_to_enemy(amount: int):
 		show_victory()
 
 func show_victory():
+	if is_battle_over: return
+	is_battle_over = true
 	end_turn_button.disabled = true
 	level_clear_label.text = "第 %d 关 已突破" % GameManager.current_level
 	get_tree().create_timer(0.5).timeout.connect(show_reward_selection)
 
 func show_reward_selection():
+	# 唯一性检查：防止弹出两次奖励界面
+	if has_node("RewardLayer"): return
+	
 	var reward_layer = CanvasLayer.new()
+	reward_layer.name = "RewardLayer"
 	reward_layer.layer = 100 
 	add_child(reward_layer)
 	var root = Control.new()
@@ -928,6 +985,8 @@ func show_reward_selection():
 	hbox.add_theme_constant_override("separation", 30) 
 	vbox.add_child(hbox)
 	var rewards = GameManager.get_random_reward_cards(3)
+	var reward_buttons = []
+	
 	for data in rewards:
 		var card_panel = PanelContainer.new()
 		var style = StyleBoxFlat.new()
@@ -966,11 +1025,16 @@ func show_reward_selection():
 		spacer.custom_minimum_size = Vector2(0, 10)
 		card_vbox.add_child(spacer)
 		var select_btn = Button.new()
+		reward_buttons.append(select_btn)
 		select_btn.text = "选择"
 		select_btn.custom_minimum_size = Vector2(120, 45)
 		select_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		card_vbox.add_child(select_btn)
 		select_btn.pressed.connect(func():
+			# 立即禁用所有奖励按钮，防止双击或多选
+			for btn in reward_buttons:
+				if is_instance_valid(btn): btn.disabled = true
+			
 			GameManager.player_deck.append(data)
 			reward_layer.queue_free()
 			victory_layer.visible = true

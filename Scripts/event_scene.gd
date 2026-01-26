@@ -266,6 +266,11 @@ func add_option(text: String, callback: Callable):
 	btn.add_theme_font_size_override("font_size", 24)
 	
 	btn.pressed.connect(func():
+		# 立即禁用所有选项，防止重复触发
+		for child in option_container.get_children():
+			if child is Button:
+				child.disabled = true
+		
 		# 点击反馈动画
 		var t = create_tween()
 		t.tween_property(btn, "scale", Vector2(0.95, 0.95), 0.05)
@@ -307,4 +312,6 @@ func finish_event(msg: String):
 		next_button.pressed.connect(_on_next_pressed)
 
 func _on_next_pressed():
+	if next_button.disabled: return
+	next_button.disabled = true
 	GameManager.advance_level()

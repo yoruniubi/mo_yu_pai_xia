@@ -25,9 +25,11 @@ var current_sequence = [] # 存储当前打出的 Emoji 序列
 var last_player_card_data = {} # 记录玩家最后出的牌
 var draw_pile = []
 var discard_pile = []
+var is_battle_over = false # 战斗结束锁
 
 # 战斗数值
 var hero_hp = 100 # 初始 100 生命
+var hero_shield = 0
 var enemy_hp = 300 # BOSS 血厚一点
 var current_ap = 3
 
@@ -107,6 +109,35 @@ func _ready() -> void:
 func update_ui_values():
 	hero_hp_bar.value = hero_hp
 	enemy_hp_bar.value = enemy_hp
+	
+	# 同步护盾 UI (与 battle_scene 一致)
+	var shield_display = hero_hp_bar.get_node_or_null("ShieldDisplay")
+	if not shield_display:
+		shield_display = PanelContainer.new()
+		shield_display.name = "ShieldDisplay"
+		var style = StyleBoxFlat.new()
+		style.bg_color = Color(0, 0.6, 0.7, 0.9) # 更亮一点的护盾青
+		style.set_corner_radius_all(10)
+		style.content_margin_left = 6
+		style.content_margin_right = 6
+		style.border_width_left = 2
+		style.border_color = Color.CYAN
+		shield_display.add_theme_stylebox_override("panel", style)
+		
+		var label = Label.new()
+		label.name = "Label"
+		label.add_theme_font_size_override("font_size", 18)
+		label.add_theme_color_override("font_color", Color.WHITE)
+		shield_display.add_child(label)
+		hero_hp_bar.add_child(shield_display)
+	
+	if hero_shield > 0:
+		shield_display.get_node("Label").text = "🛡️%d" % hero_shield
+		shield_display.show()
+		shield_display.position = Vector2(-70, -2) 
+	else:
+		shield_display.hide()
+
 	energy_label.text = "摸鱼力: %d/%d" % [current_ap, GameManager.max_ap]
 	
 	# 如果当前 AP 超过上限（临时 AP），改变颜色提醒
@@ -207,8 +238,19 @@ func execute_card_effect(data: Dictionary):
 			if emoji == "⌨️" and keyboard_buff_active:
 				dmg *= 3
 			apply_damage_to_enemy(dmg)
-		"defense":
+		"heal":
 			apply_heal_to_hero(value)
+		"shield":
+			apply_shield_to_hero(value)
+		"shield_draw":
+			apply_shield_to_hero(value)
+			draw_card()
+		"shield_attack":
+			apply_shield_to_hero(value)
+			apply_damage_to_enemy(value - 2)
+		"evasion_draw":
+			is_evading = true
+			draw_card()
 		"attack_draw":
 			apply_damage_to_enemy(value)
 			draw_card()
@@ -369,6 +411,7 @@ func execute_card_effect(data: Dictionary):
 			next_turn_extra_draws += 5
 
 func apply_damage_to_enemy(amount: int):
+	if is_battle_over: return
 	var final_dmg = amount
 	if enemy_vulnerability > 0:
 		final_dmg += enemy_vulnerability
@@ -391,6 +434,8 @@ func apply_damage_to_enemy(amount: int):
 		show_ending()
 
 func show_ending():
+	if is_battle_over: return
+	is_battle_over = true
 	end_turn_button.disabled = true
 	get_tree().create_timer(1.0).timeout.connect(func():
 		ending_layer.visible = true
@@ -410,6 +455,12 @@ func apply_heal_to_hero(amount: int):
 	hero_hp = min(GameManager.max_player_hp, hero_hp)
 	print("回复了 %d 点生命" % amount)
 	spawn_floating_number(amount, false, hero_sprite.global_position + Vector2(0, -50), Color.GREEN)
+	update_ui_values()
+	update_status_display()
+
+func apply_shield_to_hero(amount: int):
+	hero_shield += amount
+	spawn_floating_number(amount, false, hero_sprite.global_position + Vector2(0, -50), Color.CYAN)
 	update_ui_values()
 	update_status_display()
 

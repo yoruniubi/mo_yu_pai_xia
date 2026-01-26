@@ -30,9 +30,12 @@ func initialize_deck():
 	# 3张 ⌨️ (键盘输出)
 	for i in range(3):
 		player_deck.append(universal_cards[0].duplicate())
-	# 3张 💧 (摸鱼喝水)
-	for i in range(3):
+	# 2张 💧 (摸鱼喝水) - 回血
+	for i in range(2):
 		player_deck.append(universal_cards[1].duplicate())
+	# 2张 🛡️ (甩锅) - 护盾
+	for i in range(2):
+		player_deck.append(universal_cards[9].duplicate())
 	# 1张 🤡 (小丑自嘲)
 	player_deck.append(universal_cards[2].duplicate())
 	# 1张 ☕ (午后咖啡)
@@ -43,7 +46,17 @@ func initialize_deck():
 	# 1张 角色核心卡
 	if selected_hero and selected_hero.card_pool.size() > 0:
 		# 通常最后一张是核心卡
-		player_deck.append(selected_hero.card_pool[-1].duplicate())
+		var core_card = selected_hero.card_pool[-1].duplicate()
+		# 动态更新核心卡描述以匹配最新的护盾/回血逻辑
+		if "触手" in core_card.name:
+			core_card.description = "偷取 5 点耐性并转化为等量护盾"
+		elif "松果" in core_card.name:
+			core_card.description = "造成 5 伤害，获得 3 护盾并抽一张 🔥"
+		elif "图表" in core_card.name:
+			core_card.description = "抽 2 张牌，丢弃非数据卡并根据丢弃数获盾"
+		elif "简历" in core_card.name:
+			core_card.description = "获得 5 护盾并反弹本回合第一次伤害"
+		player_deck.append(core_card)
 	else:
 		# 兜底：再给一张键盘
 		player_deck.append(universal_cards[0].duplicate())
@@ -201,15 +214,15 @@ var character_combos = {
 # 通用基础卡池
 var universal_cards: Array = [
 	{"name": "键盘输出", "emoji": "⌨️", "cost": 1, "description": "造成 5 点伤害", "type": "attack", "value": 5},
-	{"name": "摸鱼喝水", "emoji": "💧", "cost": 1, "description": "获得 5 点防御 (减压)", "type": "defense", "value": 5},
+	{"name": "摸鱼喝水", "emoji": "💧", "cost": 1, "description": "回复 5 点压力 (HP)", "type": "heal", "value": 5},
 	{"name": "小丑自嘲", "emoji": "🤡", "cost": 1, "description": "造成 3 点伤害，抽 1 张牌", "type": "attack_draw", "value": 3},
 	{"name": "午后咖啡", "emoji": "☕", "cost": 0, "description": "获得 1 点摸鱼力 (AP) 并抽一张牌", "type": "buff_ap_draw", "value": 1},
 	{"name": "带薪拉屎", "emoji": "💩", "cost": 1, "description": "随机替换基础卡并抽一张", "type": "special_poop"},
-	{"name": "工位补觉", "emoji": "💤", "cost": 1, "description": "回复 5 HP，抽 1 张牌", "type": "heal_draw", "value": 5},
-	{"name": "老板画饼", "emoji": "🍞", "cost": 1, "description": "获得 5 点防御，抽 1 张牌", "type": "defense_draw", "value": 5},
-	{"name": "极限跃动", "emoji": "🏃", "cost": 1, "description": "抽 1 张牌，用于【带薪健身】连招", "type": "draw_only", "value": 1},
+	{"name": "工位补觉", "emoji": "💤", "cost": 1, "description": "回复 8 HP，抽 1 张牌", "type": "heal_draw", "value": 8},
+	{"name": "老板画饼", "emoji": "🍞", "cost": 1, "description": "获得 6 点护盾，抽 1 张牌", "type": "shield_draw", "value": 6},
+	{"name": "极限跃动", "emoji": "🏃", "cost": 1, "description": "获得 1 回合闪避并抽 1 张牌", "type": "evasion_draw", "value": 1},
 	{"name": "灵光一闪", "emoji": "💡", "cost": 1, "description": "抽 2 张牌", "type": "draw_only", "value": 2},
-	{"name": "甩锅", "emoji": "🛡️", "cost": 1, "description": "获得 4 点防御并造成 4 点伤害", "type": "defense_attack", "value": 4}
+	{"name": "甩锅", "emoji": "🛡️", "cost": 1, "description": "获得 5 点护盾并造成 3 点伤害", "type": "shield_attack", "value": 5}
 ]
 
 # 垃圾卡/诅咒卡定义
