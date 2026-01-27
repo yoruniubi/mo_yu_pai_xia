@@ -94,6 +94,9 @@ func _ready() -> void:
 	# 6. 按钮绑定
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	back_to_menu_button.pressed.connect(_on_back_to_menu_pressed)
+	# 统一调整放弃按钮位置，避免遮挡进度条
+	back_to_menu_button.position = Vector2(20, 110)
+	
 	restart_button.pressed.connect(_on_restart_pressed)
 	if has_node("%ComboDirectoryButton"):
 		%ComboDirectoryButton.pressed.connect(show_combo_directory)
@@ -148,7 +151,9 @@ func update_ui_values():
 		
 	# 更新离职进度条
 	if has_node("%ResignationBar"):
-		%ResignationBar.value = GameManager.current_level
+		var bar = %ResignationBar
+		bar.value = GameManager.current_level
+		_style_resignation_bar(bar)
 	# 同步到全局
 	GameManager.player_hp = hero_hp
 
@@ -271,7 +276,9 @@ func execute_card_effect(data: Dictionary):
 			draw_card()
 		"draw_only":
 			draw_card()
-		
+		"heal_draw":
+			apply_heal_to_hero(value)
+			draw_card()
 		# 博姆 (Boomtail) 机制
 		"attack_fire":
 			apply_damage_to_enemy(value)
@@ -302,7 +309,7 @@ func execute_card_effect(data: Dictionary):
 					def *= 3
 				else:
 					def *= 2
-			apply_heal_to_hero(def)
+			apply_shield_to_hero(def)
 		"buff_evasion":
 			is_evading = true
 			next_turn_extra_draws += value
@@ -312,7 +319,7 @@ func execute_card_effect(data: Dictionary):
 			print("降低 BOSS 攻击力: ", value)
 		"attack_steal":
 			apply_damage_to_enemy(value)
-			apply_heal_to_hero(value)
+			apply_shield_to_hero(value)
 			
 		# 莱奥 (Leo) 机制
 		"record_data":
@@ -377,7 +384,7 @@ func execute_card_effect(data: Dictionary):
 						update_hand_layout()
 		"wait_defense":
 			is_waiting_next_turn = true
-			apply_heal_to_hero(value)
+			apply_shield_to_hero(value)
 		"reflect_damage":
 			has_reflect_shield = true
 			print("反弹护盾开启")
@@ -448,6 +455,39 @@ func _on_restart_pressed():
 	GameManager.player_hp = GameManager.max_player_hp
 	GameManager.current_level = 1
 	GameManager.load_current_level_scene()
+
+func _style_resignation_bar(bar: ProgressBar):
+	# 背景样式：深奶油色底座，更有厚度感
+	var sb_bg = StyleBoxFlat.new()
+	sb_bg.bg_color = Color("#dcd8c0") 
+	sb_bg.set_corner_radius_all(12)
+	sb_bg.expand_margin_top = 6
+	sb_bg.expand_margin_bottom = 6
+	sb_bg.border_width_left = 2
+	sb_bg.border_width_top = 2
+	sb_bg.border_width_right = 2
+	sb_bg.border_width_bottom = 2
+	sb_bg.border_color = Color("#c5c0a5")
+	bar.add_theme_stylebox_override("background", sb_bg)
+	
+	# 填充样式：Boss战特有的金绿色渐变质感
+	var sb_fg = StyleBoxFlat.new()
+	sb_fg.bg_color = Color("#ffd700") # 金色，强调终局
+	sb_fg.set_corner_radius_all(10)
+	sb_fg.border_width_right = 4
+	sb_fg.border_color = Color("#b8860b") # 暗金色边
+	bar.add_theme_stylebox_override("fill", sb_fg)
+	
+	# 文字标签优化：增加描边使其更清晰
+	if bar.has_node("ResignationLabel"):
+		var label = bar.get_node("ResignationLabel")
+		label.add_theme_color_override("font_color", Color("#3d3d3d"))
+		label.add_theme_font_size_override("font_size", 20)
+		label.add_theme_constant_override("outline_size", 3)
+		label.add_theme_color_override("font_outline_color", Color.WHITE)
+		label.text = "🔥 最终决战: %d / 10 🏁" % GameManager.current_level
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 func apply_heal_to_hero(amount: int):
 	# 传统回血

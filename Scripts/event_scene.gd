@@ -93,22 +93,7 @@ func _setup_ui_styles():
 	# 美化进度条
 	if has_node("%ResignationBar"):
 		var bar = %ResignationBar
-		var sb_bg = StyleBoxFlat.new()
-		sb_bg.bg_color = Color("#e0dcc8")
-		sb_bg.set_corner_radius_all(8)
-		sb_bg.expand_margin_top = 2
-		sb_bg.expand_margin_bottom = 2
-		bar.add_theme_stylebox_override("background", sb_bg)
-		
-		var sb_fg = StyleBoxFlat.new()
-		sb_fg.bg_color = Color("#8fb9aa") # 奶油绿
-		sb_fg.set_corner_radius_all(8)
-		bar.add_theme_stylebox_override("fill", sb_fg)
-		
-		if bar.has_node("ResignationLabel"):
-			var label = bar.get_node("ResignationLabel")
-			label.add_theme_color_override("font_color", Color("#7a7a7a"))
-			label.text = "— 离职进度 %d/10 —" % GameManager.current_level
+		_style_resignation_bar(bar)
 
 	# 美化 NextButton
 	var btn_style = _create_button_style("#4a4a4a", "#666666")
@@ -116,6 +101,32 @@ func _setup_ui_styles():
 	next_button.add_theme_stylebox_override("hover", btn_style.hover)
 	next_button.add_theme_stylebox_override("pressed", btn_style.pressed)
 	next_button.add_theme_color_override("font_color", Color.WHITE)
+
+func _style_resignation_bar(bar: ProgressBar):
+	# 背景样式：浅奶油灰，圆润感
+	var sb_bg = StyleBoxFlat.new()
+	sb_bg.bg_color = Color("#e0dcc8") 
+	sb_bg.set_corner_radius_all(10)
+	sb_bg.expand_margin_top = 4
+	sb_bg.expand_margin_bottom = 4
+	bar.add_theme_stylebox_override("background", sb_bg)
+	
+	# 填充样式：奶油绿，带右侧装饰边
+	var sb_fg = StyleBoxFlat.new()
+	sb_fg.bg_color = Color("#8fb9aa") 
+	sb_fg.set_corner_radius_all(10)
+	sb_fg.border_width_right = 3
+	sb_fg.border_color = Color("#7aa899")
+	bar.add_theme_stylebox_override("fill", sb_fg)
+	
+	# 文字标签优化
+	if bar.has_node("ResignationLabel"):
+		var label = bar.get_node("ResignationLabel")
+		label.add_theme_color_override("font_color", Color("#4a4a4a"))
+		label.add_theme_font_size_override("font_size", 18)
+		label.text = "离职进度: %d / 10" % GameManager.current_level
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 func _create_button_style(color_hex: String, hover_hex: String) -> Dictionary:
 	var normal = StyleBoxFlat.new()

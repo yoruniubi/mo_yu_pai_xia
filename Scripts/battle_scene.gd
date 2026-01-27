@@ -10,7 +10,6 @@ extends Control
 @onready var energy_label = %EnergyLabel
 @onready var hand_container = %HandContainer
 @onready var end_turn_button = %EndTurnButton
-@onready var go_to_boss_button = %GoToBossButton
 @onready var victory_layer = %VictoryLayer
 @onready var next_level_button = %NextLevelButton
 @onready var level_clear_label = %LevelClearLabel
@@ -105,6 +104,44 @@ func _ready():
 	# 7. 初始抽牌
 	for i in range(5):
 		draw_card()
+	
+	# 8. 添加返回按钮
+	_setup_back_button()
+
+func _setup_back_button():
+	var back_btn = Button.new()
+	back_btn.text = " ↩ 放弃挑战 "
+	back_btn.name = "AbandonButton"
+	
+	# 使用与主菜单/角色选择类似的风格
+	var style_normal = _create_style("#fdf5e6", 15, 2)
+	var style_hover = _create_style("#ff6b6b", 15, 4) 
+	var style_pressed = _create_style("#c0392b", 15, 0)
+	
+	back_btn.add_theme_stylebox_override("normal", style_normal)
+	back_btn.add_theme_stylebox_override("hover", style_hover)
+	back_btn.add_theme_stylebox_override("pressed", style_pressed)
+	back_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+	back_btn.add_theme_color_override("font_hover_color", Color.WHITE)
+	back_btn.add_theme_font_size_override("font_size", 16)
+	
+	# 放置在左上角
+	back_btn.position = Vector2(15, 15)
+	back_btn.custom_minimum_size = Vector2(130, 40)
+	add_child(back_btn)
+	
+	back_btn.pressed.connect(func():
+		var dialog = ConfirmationDialog.new()
+		dialog.title = "确认放弃？"
+		dialog.dialog_text = "当前的离职进度将会丢失，确定要返回主菜单吗？"
+		dialog.ok_button_text = "确定"
+		dialog.cancel_button_text = "点错了"
+		add_child(dialog)
+		dialog.popup_centered()
+		dialog.confirmed.connect(func():
+			get_tree().change_scene_to_file("res://Scenes/main_menu.tscn")
+		)
+	)
 
 func update_ui_values():
 	hero_hp_bar.value = hero_hp
@@ -152,7 +189,9 @@ func update_ui_values():
 		
 	# 更新离职进度条
 	if has_node("%ResignationBar"):
-		%ResignationBar.value = GameManager.current_level
+		var bar = %ResignationBar
+		bar.value = GameManager.current_level
+		_style_resignation_bar(bar)
 	# 同步到全局
 	GameManager.player_hp = hero_hp
 
@@ -168,12 +207,21 @@ func setup_button_style():
 	btn.add_theme_color_override("font_color", Color.WHITE)
 	
 	btn.pressed.connect(_on_end_turn_pressed)
-	# 移除挑战 Boss 按钮，改为隐藏
-	go_to_boss_button.hide()
 	next_level_button.pressed.connect(_on_next_level_pressed)
 	restart_button.pressed.connect(_on_restart_pressed)
+	
 	if has_node("%ComboDirectoryButton"):
-		%ComboDirectoryButton.pressed.connect(show_combo_directory)
+		var combo_btn = %ComboDirectoryButton
+		combo_btn.pressed.connect(show_combo_directory)
+		# 统一按钮风格
+		var cb_normal = _create_style("#fdf5e6", 10, 2)
+		var cb_hover = _create_style("#8fb9aa", 10, 4)
+		combo_btn.add_theme_stylebox_override("normal", cb_normal)
+		combo_btn.add_theme_stylebox_override("hover", cb_hover)
+		combo_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+		# 放在右上角
+		combo_btn.position = Vector2(get_viewport_rect().size.x - 145, 15)
+		combo_btn.custom_minimum_size = Vector2(130, 40)
 
 func _on_restart_pressed():
 	GameManager.player_hp = GameManager.max_player_hp
@@ -190,7 +238,51 @@ func _create_style(color_hex: String, radius: int, shadow: int) -> StyleBoxFlat:
 	sb.set_corner_radius_all(radius)
 	sb.shadow_size = shadow
 	sb.shadow_offset = Vector2(0, shadow / 2.0)
+	sb.border_width_bottom = 2
+	sb.border_color = Color(0, 0, 0, 0.1)
 	return sb
+
+func _style_resignation_bar(bar: ProgressBar):
+	# 容器尺寸与位置微调
+	bar.custom_minimum_size.y = 40
+	bar.show_percentage = false
+	
+	# 背景：奶油色，带圆角和阴影
+	var sb_bg = StyleBoxFlat.new()
+	sb_bg.bg_color = Color("#dcd8c0") 
+	sb_bg.set_corner_radius_all(20)
+	sb_bg.shadow_color = Color(0, 0, 0, 0.1)
+	sb_bg.shadow_size = 4
+	sb_bg.shadow_offset = Vector2(0, 2)
+	bar.add_theme_stylebox_override("background", sb_bg)
+	
+	# 进度：清新绿
+	var sb_fg = StyleBoxFlat.new()
+	sb_fg.bg_color = Color("#8fb9aa") 
+	sb_fg.set_corner_radius_all(20)
+	bar.add_theme_stylebox_override("fill", sb_fg)
+	
+	# 文字标签：确保绝对居中
+	if bar.has_node("ResignationLabel"):
+		var label = bar.get_node("ResignationLabel")
+		label.add_theme_color_override("font_color", Color("#3d3d3d"))
+		label.add_theme_font_size_override("font_size", 18)
+		label.add_theme_constant_override("outline_size", 2)
+		label.add_theme_color_override("font_outline_color", Color.WHITE)
+		label.text = "🏃 离职进度: %d / 10 🏁" % GameManager.current_level
+		
+		# 使用更严谨的居中对齐方式
+		label.anchor_left = 0
+		label.anchor_top = 0
+		label.anchor_right = 1
+		label.anchor_bottom = 1
+		label.offset_left = 0
+		label.offset_top = 0
+		label.offset_right = 0
+		label.offset_bottom = 0
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
 
 func _on_end_turn_pressed():
 	end_turn_button.disabled = true
@@ -355,8 +447,7 @@ func start_player_turn():
 				print("由于未打出虚假目标，本回合抽牌减少")
 				draw_count -= 1
 			# 回合结束手牌进弃牌堆
-			if not card.card_data.get("type", "").begins_with("junk"):
-				discard_pile.append(card.card_data)
+			discard_pile.append(card.card_data)
 		
 		for card in hand_cards:
 			card.queue_free()
@@ -512,9 +603,8 @@ func _on_card_played(card_node):
 	execute_card_effect(data)
 	last_player_card_data = data
 	
-	# 垃圾卡不进弃牌堆，直接消失（或者根据需求定，这里简单处理为不进弃牌堆）
-	if not data.get("type", "").begins_with("junk"):
-		discard_pile.append(data)
+	# 垃圾卡也会进入弃牌堆以持续污染牌组
+	discard_pile.append(data)
 	
 	if emoji != "":
 		current_sequence.append(emoji)
@@ -585,7 +675,6 @@ func update_status_display():
 		child.queue_free()
 	
 	# 玩家状态
-	# 移除重复的护盾显示，因为血条旁边已经有了
 	if is_evading:
 		_add_status_badge(" 闪避", Color.CYAN)
 	if keyboard_buff_active:
@@ -595,7 +684,7 @@ func update_status_display():
 	if false_hope_stacks > 0:
 		_add_status_badge("🍞 希望 x%d" % false_hope_stacks, Color.YELLOW)
 	
-	# 敌人状态 (醒目标注)
+	# 敌人状态
 	if enemy_fire_stacks > 0:
 		_add_status_badge("BOSS: 🔥 火大 x%d" % enemy_fire_stacks, Color.RED)
 	if enemy_vulnerability > 0:
@@ -659,15 +748,13 @@ func trigger_combo(combo_data):
 	print("！！！触发连招：", combo_data.name, " -> ", combo_data.effect)
 	
 	# --- 视觉特效 ---
-	# 1. 屏幕闪烁
 	if %AnimationManager.has_method("play_combo_flash"):
 		%AnimationManager.play_combo_flash()
 	
-	# 2. 震屏
 	if %AnimationManager.has_method("shake_screen"):
 		%AnimationManager.shake_screen(20.0, 0.4)
 	
-	# 3. 弹出大文字提示
+	# 弹出大文字提示
 	var combo_label = Label.new()
 	combo_label.text = "★ %s ★" % combo_data.name
 	combo_label.add_theme_font_size_override("font_size", 60)
@@ -677,7 +764,7 @@ func trigger_combo(combo_data):
 	combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	combo_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	combo_label.custom_minimum_size = Vector2(800, 100)
-	combo_label.position = Vector2(50, 400) # 屏幕中心上方
+	combo_label.position = Vector2(50, 400) 
 	add_child(combo_label)
 	
 	var lt = create_tween().set_parallel(true)
@@ -724,7 +811,6 @@ func trigger_combo(combo_data):
 			apply_heal_to_hero(20)
 			is_waiting_next_turn = false
 			next_turn_extra_draws += 2
-			print("带薪休假：取消待岗状态，下回合额外抽 2 张牌")
 		"slack_trio":
 			for i in range(2): draw_card()
 			current_ap += 1
@@ -767,7 +853,7 @@ func execute_card_effect(data: Dictionary):
 			draw_card()
 		"shield_attack":
 			apply_shield_to_hero(value)
-			apply_damage_to_enemy(value - 2) # 甩锅伤害略低
+			apply_damage_to_enemy(value - 2)
 		"evasion_draw":
 			is_evading = true
 			draw_card()
@@ -781,7 +867,6 @@ func execute_card_effect(data: Dictionary):
 			draw_card()
 		"next_turn_ap":
 			next_turn_extra_ap += value
-			print("获得下回合额外 AP: ", value)
 		"special_poop":
 			poop_played_this_turn = true
 			draw_card()
@@ -805,7 +890,7 @@ func execute_card_effect(data: Dictionary):
 				current_ap += 1
 		"attack_seed":
 			apply_damage_to_enemy(value)
-			apply_shield_to_hero(3) # 松果：提供少量热能护盾
+			apply_shield_to_hero(3)
 			if GameManager.selected_hero:
 				var fire_cards = GameManager.selected_hero.card_pool.filter(func(c): return c.get("emoji") == "🔥")
 				if fire_cards.size() > 0:
@@ -815,36 +900,29 @@ func execute_card_effect(data: Dictionary):
 		"defense_ink":
 			var def = value
 			if poop_played_this_turn:
-				if value >= 15: # 进化版：浓缩墨汁
-					def *= 3
-				else:
-					def *= 2
-			apply_shield_to_hero(def) # 墨汁现在提供护盾
+				if value >= 15: def *= 3
+				else: def *= 2
+			apply_shield_to_hero(def)
 		"buff_evasion":
 			is_evading = true
 			next_turn_extra_draws += value
 		"debuff_atk":
 			enemy_atk_reduction += value
-			print("敌人攻击力降低: ", value)
 		"attack_steal":
 			apply_damage_to_enemy(value)
-			apply_shield_to_hero(value) # 触手：偷取耐性转化为护盾
+			apply_shield_to_hero(value)
 		"record_data":
 			recorded_data_value = last_damage_dealt * (value if value > 0 else 1)
-			print("记录数值: ", recorded_data_value)
 		"release_data":
 			apply_damage_to_enemy(recorded_data_value * value)
 		"debuff_def":
 			enemy_vulnerability += value
-			print("敌人防御削弱，受击伤害增加: ", value)
 		"junk_goal":
 			current_ap -= 1
-			print("打出虚假目标，摸鱼力 -1")
 		"attack_draw_conditional":
 			apply_damage_to_enemy(value)
 			var c = draw_card()
 			if c and c.card_data.get("emoji") == "📊":
-				print("触发连动：抽到数据卡，额外再抽一张！")
 				await get_tree().create_timer(0.2).timeout
 				draw_card()
 		"attack_draw_record":
@@ -852,7 +930,6 @@ func execute_card_effect(data: Dictionary):
 			for i in range(3): draw_card()
 			recorded_data_value = last_damage_dealt
 			current_ap += 1
-			print("核心卡触发：造成伤害，抽 3 张牌，记录数值并回复 1 AP: ", recorded_data_value)
 		"red_tape":
 			intent_label.text = "意图：流程审批中 (发呆)"
 			skip_enemy_turn = true
@@ -876,13 +953,13 @@ func execute_card_effect(data: Dictionary):
 						discarded_count += 1
 						update_hand_layout()
 			if discarded_count > 0:
-				apply_shield_to_hero(discarded_count * 3) # 图表：整理数据获得护盾
+				apply_shield_to_hero(discarded_count * 3)
 		"wait_defense":
 			is_waiting_next_turn = true
-			apply_shield_to_hero(value) # 待岗提供护盾
+			apply_shield_to_hero(value)
 		"reflect_damage":
 			has_reflect_shield = true
-			apply_shield_to_hero(5) # 简历：反弹并提供基础防御
+			apply_shield_to_hero(5)
 		"attack_draw_specific":
 			apply_damage_to_enemy(value)
 			var target = data.get("target_emoji", "")
@@ -900,8 +977,6 @@ func execute_card_effect(data: Dictionary):
 						draw_card(c_data)
 						found = true
 						break
-			if not found:
-				print("未找到目标卡牌: ", target)
 		"release_data_ap":
 			apply_damage_to_enemy(recorded_data_value * value)
 			current_ap += 2
@@ -915,7 +990,6 @@ func execute_card_effect(data: Dictionary):
 		"reduce_max_hp":
 			enemy_hp_bar.max_value -= value
 			enemy_hp = min(enemy_hp, enemy_hp_bar.max_value)
-			print("敌人耐性上限削减: ", value)
 		"filter_cards_buff":
 			for i in range(value):
 				var c = draw_card()
@@ -927,6 +1001,9 @@ func execute_card_effect(data: Dictionary):
 		"paid_leave_ultra":
 			apply_heal_to_hero(value)
 			next_turn_extra_draws += 5
+		"heal_draw":
+			apply_heal_to_hero(value)
+			draw_card()
 
 func apply_damage_to_enemy(amount: int):
 	if is_battle_over: return
@@ -953,7 +1030,6 @@ func show_victory():
 	get_tree().create_timer(0.5).timeout.connect(show_reward_selection)
 
 func show_reward_selection():
-	# 唯一性检查：防止弹出两次奖励界面
 	if has_node("RewardLayer"): return
 	
 	var reward_layer = CanvasLayer.new()
@@ -1015,12 +1091,6 @@ func show_reward_selection():
 		name_label.add_theme_font_size_override("font_size", 24)
 		name_label.add_theme_color_override("font_color", Color.BLACK)
 		card_vbox.add_child(name_label)
-		var cost_label = Label.new()
-		cost_label.text = "%d AP" % data.cost
-		cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		cost_label.add_theme_font_size_override("font_size", 18)
-		cost_label.add_theme_color_override("font_color", Color.DARK_SLATE_GRAY)
-		card_vbox.add_child(cost_label)
 		var spacer = Control.new()
 		spacer.custom_minimum_size = Vector2(0, 10)
 		card_vbox.add_child(spacer)
@@ -1031,10 +1101,8 @@ func show_reward_selection():
 		select_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		card_vbox.add_child(select_btn)
 		select_btn.pressed.connect(func():
-			# 立即禁用所有奖励按钮，防止双击或多选
 			for btn in reward_buttons:
 				if is_instance_valid(btn): btn.disabled = true
-			
 			GameManager.player_deck.append(data)
 			reward_layer.queue_free()
 			victory_layer.visible = true
@@ -1056,13 +1124,8 @@ func apply_shield_to_hero(amount: int):
 func _update_enemy_intent():
 	var enemy = GameManager.get_current_enemy()
 	var base_dmg = 10 + (GameManager.current_level * 3)
-	
-	# 清除之前的警告样式
 	intent_label.remove_theme_color_override("font_color")
 	intent_label.scale = Vector2.ONE
-	if intent_label.has_meta("pulse_tween"):
-		var old_tween = intent_label.get_meta("pulse_tween")
-		if old_tween: old_tween.kill()
 	
 	if "鹦鹉" in enemy.name:
 		intent_label.text = "意图: 📝 复制"
@@ -1076,17 +1139,10 @@ func _update_enemy_intent():
 		intent_label.text = "意图: 🕸️ 30 + 🕸️"
 		intent_label.add_theme_color_override("font_color", Color.ORANGE_RED)
 	elif "CEO" in enemy.name:
-		intent_label.text = "意图: 🦁 45 + 📉 (致命)"
+		intent_label.text = "意图: KPI 45 + 📉"
 		intent_label.add_theme_color_override("font_color", Color.RED)
-		# 危险警告动画
-		var t = create_tween().set_loops()
-		t.tween_property(intent_label, "scale", Vector2(1.15, 1.15), 0.4).set_trans(Tween.TRANS_SINE)
-		t.tween_property(intent_label, "scale", Vector2(1.0, 1.0), 0.4).set_trans(Tween.TRANS_SINE)
-		intent_label.set_meta("pulse_tween", t)
 	else:
 		intent_label.text = "意图: ⚔️ %d" % base_dmg
-		if base_dmg >= 25:
-			intent_label.add_theme_color_override("font_color", Color.ORANGE)
 
 func spawn_floating_number(amount: int, is_critical: bool, pos: Vector2, color: Color = Color.WHITE):
 	var fn = floating_number_scene.instantiate()

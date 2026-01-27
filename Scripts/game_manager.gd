@@ -49,13 +49,13 @@ func initialize_deck():
 		var core_card = selected_hero.card_pool[-1].duplicate()
 		# 动态更新核心卡描述以匹配最新的护盾/回血逻辑
 		if "触手" in core_card.name:
-			core_card.description = "偷取 5 点耐性并转化为等量护盾"
+			core_card.description = "偷取敌人 5 点耐性值，转化为自身防御。"
 		elif "松果" in core_card.name:
-			core_card.description = "造成 5 伤害，获得 3 护盾并抽一张 🔥"
+			core_card.description = "造成 5 伤害，获得 1 个随机 🔥 卡。"
 		elif "图表" in core_card.name:
-			core_card.description = "抽 2 张牌，丢弃非数据卡并根据丢弃数获盾"
+			core_card.description = "造成 20 伤害。抽 3 张牌。记录本次伤害。回复 1 AP。"
 		elif "简历" in core_card.name:
-			core_card.description = "获得 5 护盾并反弹本回合第一次伤害"
+			core_card.description = "反弹本回合受到的第一次伤害。"
 		player_deck.append(core_card)
 	else:
 		# 兜底：再给一张键盘
@@ -217,7 +217,7 @@ var universal_cards: Array = [
 	{"name": "摸鱼喝水", "emoji": "💧", "cost": 1, "description": "回复 5 点压力 (HP)", "type": "heal", "value": 5},
 	{"name": "小丑自嘲", "emoji": "🤡", "cost": 1, "description": "造成 3 点伤害，抽 1 张牌", "type": "attack_draw", "value": 3},
 	{"name": "午后咖啡", "emoji": "☕", "cost": 0, "description": "获得 1 点摸鱼力 (AP) 并抽一张牌", "type": "buff_ap_draw", "value": 1},
-	{"name": "带薪拉屎", "emoji": "💩", "cost": 1, "description": "随机替换基础卡并抽一张", "type": "special_poop"},
+	{"name": "带薪拉屎", "emoji": "💩", "cost": 1, "description": "对敌方施加中毒效果(每回合扣血，根据中毒层数)", "type": "special_poop"},
 	{"name": "工位补觉", "emoji": "💤", "cost": 1, "description": "回复 8 HP，抽 1 张牌", "type": "heal_draw", "value": 8},
 	{"name": "老板画饼", "emoji": "🍞", "cost": 1, "description": "获得 6 点护盾，抽 1 张牌", "type": "shield_draw", "value": 6},
 	{"name": "极限跃动", "emoji": "🏃", "cost": 1, "description": "获得 1 回合闪避并抽 1 张牌", "type": "evasion_draw", "value": 1},
