@@ -35,6 +35,7 @@ var current_ap = 3
 
 # 特殊状态变量
 var enemy_fire_stacks = 0
+var enemy_poison_stacks = 0
 var last_damage_dealt = 0
 var recorded_data_value = 0
 var poop_played_this_turn = false
@@ -121,6 +122,8 @@ func _setup_back_button():
 	back_btn.add_theme_stylebox_override("normal", style_normal)
 	back_btn.add_theme_stylebox_override("hover", style_hover)
 	back_btn.add_theme_stylebox_override("pressed", style_pressed)
+	back_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	back_btn.focus_mode = Control.FOCUS_NONE
 	back_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
 	back_btn.add_theme_color_override("font_hover_color", Color.WHITE)
 	back_btn.add_theme_font_size_override("font_size", 16)
@@ -196,17 +199,29 @@ func update_ui_values():
 	GameManager.player_hp = hero_hp
 
 func setup_button_style():
-	var btn = end_turn_button
 	var style_normal = _create_style("#4a4a4a", 10, 4)
 	var style_hover = _create_style("#666666", 10, 6)
 	var style_pressed = _create_style("#222222", 10, 0)
 	
-	btn.add_theme_stylebox_override("normal", style_normal)
-	btn.add_theme_stylebox_override("hover", style_hover)
-	btn.add_theme_stylebox_override("pressed", style_pressed)
-	btn.add_theme_color_override("font_color", Color.WHITE)
+	# 结束回合按钮样式
+	end_turn_button.add_theme_stylebox_override("normal", style_normal)
+	end_turn_button.add_theme_stylebox_override("hover", style_hover)
+	end_turn_button.add_theme_stylebox_override("pressed", style_pressed)
+	end_turn_button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	end_turn_button.focus_mode = Control.FOCUS_NONE
+	end_turn_button.add_theme_color_override("font_color", Color.WHITE)
 	
-	btn.pressed.connect(_on_end_turn_pressed)
+	end_turn_button.pressed.connect(_on_end_turn_pressed)
+	
+	# 胜利/失败界面的按钮也统一样式并修复焦点边框
+	for btn in [next_level_button, restart_button]:
+		btn.add_theme_stylebox_override("normal", style_normal)
+		btn.add_theme_stylebox_override("hover", style_hover)
+		btn.add_theme_stylebox_override("pressed", style_pressed)
+		btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.add_theme_color_override("font_color", Color.WHITE)
+		
 	next_level_button.pressed.connect(_on_next_level_pressed)
 	restart_button.pressed.connect(_on_restart_pressed)
 	
@@ -216,8 +231,12 @@ func setup_button_style():
 		# 统一按钮风格
 		var cb_normal = _create_style("#fdf5e6", 10, 2)
 		var cb_hover = _create_style("#8fb9aa", 10, 4)
+		var cb_pressed = _create_style("#7aa899", 10, 0)
 		combo_btn.add_theme_stylebox_override("normal", cb_normal)
 		combo_btn.add_theme_stylebox_override("hover", cb_hover)
+		combo_btn.add_theme_stylebox_override("pressed", cb_pressed)
+		combo_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		combo_btn.focus_mode = Control.FOCUS_NONE
 		combo_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
 		# 放在右上角
 		combo_btn.position = Vector2(get_viewport_rect().size.x - 145, 15)
@@ -309,6 +328,14 @@ func _on_end_turn_pressed():
 		enemy_turn()
 
 func enemy_turn():
+	# 处理中毒伤害
+	if enemy_poison_stacks > 0:
+		print("中毒发作：造成 %d 点伤害" % enemy_poison_stacks)
+		apply_damage_to_enemy(enemy_poison_stacks)
+		enemy_poison_stacks = max(0, enemy_poison_stacks - 1)
+		update_status_display()
+		await get_tree().create_timer(0.4).timeout
+
 	if has_meta("skip_next_intent"):
 		remove_meta("skip_next_intent")
 		intent_label.text = "意图：继续发呆..."
@@ -691,6 +718,8 @@ func update_status_display():
 		_add_status_badge("BOSS: 💔 易伤 +%d" % enemy_vulnerability, Color.CORAL)
 	if enemy_atk_reduction > 0:
 		_add_status_badge("BOSS: 📉 虚弱 -%d" % enemy_atk_reduction, Color.DARK_GRAY)
+	if enemy_poison_stacks > 0:
+		_add_status_badge("BOSS: 🤢 中毒 x%d" % enemy_poison_stacks, Color.GREEN_YELLOW)
 
 func _add_status_badge(text: String, color: Color):
 	var panel = PanelContainer.new()
@@ -869,6 +898,7 @@ func execute_card_effect(data: Dictionary):
 			next_turn_extra_ap += value
 		"special_poop":
 			poop_played_this_turn = true
+			enemy_poison_stacks += 3 # 施加 3 层中毒
 			draw_card()
 		"sleep", "bread":
 			draw_card()
@@ -885,7 +915,10 @@ func execute_card_effect(data: Dictionary):
 			var total_dmg = value + (enemy_fire_stacks * 5)
 			apply_damage_to_enemy(total_dmg)
 		"buff_fire":
-			enemy_fire_stacks *= value
+			if enemy_fire_stacks == 0:
+				enemy_fire_stacks = 1
+			else:
+				enemy_fire_stacks *= value
 			if data.get("name") == "余烬":
 				current_ap += 1
 		"attack_seed":
@@ -912,9 +945,13 @@ func execute_card_effect(data: Dictionary):
 			apply_damage_to_enemy(value)
 			apply_shield_to_hero(value)
 		"record_data":
-			recorded_data_value = last_damage_dealt * (value if value > 0 else 1)
+			# 保底记录 5 点，防止空转
+			var base = last_damage_dealt if last_damage_dealt > 0 else 5
+			recorded_data_value = base * (value if value > 0 else 1)
 		"release_data":
-			apply_damage_to_enemy(recorded_data_value * value)
+			# 保底造成 5 点伤害
+			var dmg = recorded_data_value * value
+			apply_damage_to_enemy(max(5, dmg))
 		"debuff_def":
 			enemy_vulnerability += value
 		"junk_goal":

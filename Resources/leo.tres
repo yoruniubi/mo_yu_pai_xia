@@ -14,14 +14,14 @@ combo_style = "策略进化流"
 description = "重新定义卡牌属性，复制敌人技能，根据对手弱点进行演化。"
 card_pool = [{
 "cost": 1,
-"description": "记录上一张牌的伤害数值",
+"description": "记录上一张牌的伤害数值（保底 5 点）",
 "emoji": "📊",
 "name": "虚假报表",
 "type": "record_data",
-"value": 0
+"value": 1
 }, {
 "cost": 2,
-"description": "将 📊 记录的数值翻倍并再次释放",
+"description": "将 📊 记录的数值翻倍并再次释放（保底 5 点）",
 "emoji": "📈",
 "name": "指数增长",
 "type": "release_data",

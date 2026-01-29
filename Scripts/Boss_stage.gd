@@ -35,6 +35,7 @@ var current_ap = 3
 
 # 特殊状态变量 (同步 battle_scene)
 var enemy_fire_stacks = 0
+var enemy_poison_stacks = 0
 var last_damage_dealt = 0
 var recorded_data_value = 0
 var poop_played_this_turn = false
@@ -91,15 +92,8 @@ func _ready() -> void:
 	update_ui_values()
 	update_status_display()
 	
-	# 6. 按钮绑定
-	end_turn_button.pressed.connect(_on_end_turn_pressed)
-	back_to_menu_button.pressed.connect(_on_back_to_menu_pressed)
-	# 统一调整放弃按钮位置，避免遮挡进度条
-	back_to_menu_button.position = Vector2(20, 110)
-	
-	restart_button.pressed.connect(_on_restart_pressed)
-	if has_node("%ComboDirectoryButton"):
-		%ComboDirectoryButton.pressed.connect(show_combo_directory)
+	# 6. 按钮样式与绑定
+	setup_button_style()
 	
 	# 5. 初始化战斗牌堆
 	draw_pile = GameManager.player_deck.duplicate()
@@ -108,6 +102,67 @@ func _ready() -> void:
 	# 6. 初始抽牌
 	for i in range(5):
 		draw_card()
+
+func setup_button_style():
+	var style_normal = _create_style("#4a4a4a", 10, 4)
+	var style_hover = _create_style("#666666", 10, 6)
+	var style_pressed = _create_style("#222222", 10, 0)
+	
+	# 结束回合按钮样式
+	end_turn_button.add_theme_stylebox_override("normal", style_normal)
+	end_turn_button.add_theme_stylebox_override("hover", style_hover)
+	end_turn_button.add_theme_stylebox_override("pressed", style_pressed)
+	end_turn_button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	end_turn_button.focus_mode = Control.FOCUS_NONE
+	end_turn_button.add_theme_color_override("font_color", Color.WHITE)
+	
+	end_turn_button.pressed.connect(_on_end_turn_pressed)
+	
+	# 放弃挑战按钮样式 (Boss 关)
+	back_to_menu_button.add_theme_stylebox_override("normal", _create_style("#fdf5e6", 15, 2))
+	back_to_menu_button.add_theme_stylebox_override("hover", _create_style("#ff6b6b", 15, 4))
+	back_to_menu_button.add_theme_stylebox_override("pressed", _create_style("#c0392b", 15, 0))
+	back_to_menu_button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	back_to_menu_button.focus_mode = Control.FOCUS_NONE
+	back_to_menu_button.add_theme_color_override("font_color", Color("#4a4a4a"))
+	back_to_menu_button.add_theme_color_override("font_hover_color", Color.WHITE)
+	
+	back_to_menu_button.pressed.connect(_on_back_to_menu_pressed)
+	back_to_menu_button.position = Vector2(20, 110)
+	
+	# 重新开始按钮样式
+	restart_button.add_theme_stylebox_override("normal", style_normal)
+	restart_button.add_theme_stylebox_override("hover", style_hover)
+	restart_button.add_theme_stylebox_override("pressed", style_pressed)
+	restart_button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	restart_button.focus_mode = Control.FOCUS_NONE
+	restart_button.add_theme_color_override("font_color", Color.WHITE)
+	
+	restart_button.pressed.connect(_on_restart_pressed)
+	
+	if has_node("%ComboDirectoryButton"):
+		var combo_btn = %ComboDirectoryButton
+		combo_btn.pressed.connect(show_combo_directory)
+		# 统一按钮风格
+		var cb_normal = _create_style("#fdf5e6", 10, 2)
+		var cb_hover = _create_style("#8fb9aa", 10, 4)
+		var cb_pressed = _create_style("#7aa899", 10, 0)
+		combo_btn.add_theme_stylebox_override("normal", cb_normal)
+		combo_btn.add_theme_stylebox_override("hover", cb_hover)
+		combo_btn.add_theme_stylebox_override("pressed", cb_pressed)
+		combo_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		combo_btn.focus_mode = Control.FOCUS_NONE
+		combo_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+
+func _create_style(color_hex: String, radius: int, shadow: int) -> StyleBoxFlat:
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = Color(color_hex)
+	sb.set_corner_radius_all(radius)
+	sb.shadow_size = shadow
+	sb.shadow_offset = Vector2(0, shadow / 2.0)
+	sb.border_width_bottom = 2
+	sb.border_color = Color(0, 0, 0, 0.1)
+	return sb
 
 func update_ui_values():
 	hero_hp_bar.value = hero_hp
@@ -178,7 +233,7 @@ func _on_card_played(card_node):
 	var data = card_node.card_data
 	var emoji = data.get("emoji", "")
 	var cost = data.get("cost", 1)
-	
+
 	# KPI 考核影响
 	var has_kpi = false
 	for c in hand_cards:
@@ -263,6 +318,7 @@ func execute_card_effect(data: Dictionary):
 			current_ap += value
 		"special_poop":
 			poop_played_this_turn = true
+			enemy_poison_stacks += 3
 			draw_card()
 		"sleep", "bread":
 			draw_card()
@@ -288,10 +344,13 @@ func execute_card_effect(data: Dictionary):
 			var total_dmg = value + (enemy_fire_stacks * 5)
 			apply_damage_to_enemy(total_dmg)
 		"buff_fire":
-			enemy_fire_stacks *= value
+			if enemy_fire_stacks == 0:
+				enemy_fire_stacks = 1
+			else:
+				enemy_fire_stacks *= value
 			if data.get("name") == "余烬":
 				current_ap += 1
-			print("BOSS 火大层数翻倍: ", enemy_fire_stacks)
+			print("BOSS 火大层数更新: ", enemy_fire_stacks)
 		"attack_seed":
 			apply_damage_to_enemy(value)
 			if GameManager.selected_hero:
@@ -323,10 +382,12 @@ func execute_card_effect(data: Dictionary):
 			
 		# 莱奥 (Leo) 机制
 		"record_data":
-			recorded_data_value = last_damage_dealt * (value if value > 0 else 1)
+			var base = last_damage_dealt if last_damage_dealt > 0 else 5
+			recorded_data_value = base * (value if value > 0 else 1)
 			print("记录数值: ", recorded_data_value)
 		"release_data":
-			apply_damage_to_enemy(recorded_data_value * value)
+			var dmg = recorded_data_value * value
+			apply_damage_to_enemy(max(5, dmg))
 		"debuff_def":
 			enemy_vulnerability += value
 			print("削弱 BOSS 防御: ", value)
@@ -737,6 +798,14 @@ func _on_end_turn_pressed():
 		enemy_turn()
 
 func enemy_turn():
+	# 处理中毒伤害
+	if enemy_poison_stacks > 0:
+		print("中毒发作：造成 %d 点伤害" % enemy_poison_stacks)
+		apply_damage_to_enemy(enemy_poison_stacks)
+		enemy_poison_stacks = max(0, enemy_poison_stacks - 1)
+		update_status_display()
+		await get_tree().create_timer(0.4).timeout
+
 	if %BossSprite.has_method("play_attack"):
 		%BossSprite.play_attack()
 	
@@ -952,6 +1021,8 @@ func update_status_display():
 		_add_status_label("🍞 希望 x%d" % false_hope_stacks, Color.YELLOW)
 	if enemy_fire_stacks > 0:
 		_add_status_label("🔥 敌火 x%d" % enemy_fire_stacks, Color.RED)
+	if enemy_poison_stacks > 0:
+		_add_status_label("🤢 中毒 x%d" % enemy_poison_stacks, Color.GREEN_YELLOW)
 
 func _add_status_label(text: String, color: Color):
 	var label = Label.new()

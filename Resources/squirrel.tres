@@ -28,7 +28,7 @@ card_pool = [{
 "value": 10
 }, {
 "cost": 1,
-"description": "目标“火大”层数翻倍",
+"description": "目标“火大”层数翻倍（若为0则设为1）",
 "emoji": "🧨",
 "name": "火上浇油",
 "type": "buff_fire",
