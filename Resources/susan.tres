@@ -40,4 +40,18 @@ card_pool = [{
 "name": "本命核心：简历",
 "type": "reflect_damage",
 "value": 1
+}, {
+"cost": 1,
+"description": "造成 12 伤害，老板下个意图伤害减半",
+"emoji": "🚫",
+"name": "拒绝入职",
+"type": "attack_debuff_atk_half",
+"value": 12
+}, {
+"cost": 1,
+"description": "回复 10 HP，并使老板进入易伤状态",
+"emoji": "⚖️",
+"name": "职场天平",
+"type": "heal_vulnerability",
+"value": 10
 }]

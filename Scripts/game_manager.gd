@@ -158,14 +158,35 @@ var universal_combos = {
 	"💩☕💤": {"name": "终极摸鱼", "parts": ["💩", "☕", "💤"], "effect": "恢复满 HP 且跳过老板回合", "logic": "ultimate_slack"},
 	"☕💩💧": {"name": "摸鱼三件套", "parts": ["☕", "💩", "💧"], "effect": "抽 2 张牌，摸鱼力 +1", "logic": "slack_trio"},
 	"🤡💩🤡": {"name": "职场老油条", "parts": ["🤡", "💩", "🤡"], "effect": "获得 2 回合减损闪避", "logic": "office_slicker"},
-	"🏃💧💩": {"name": "带薪健身", "parts": ["🏃", "💧", "💩"], "effect": "回复 10 HP，本场战斗 HP 上限 +5", "logic": "paid_gym"}
+	"🏃💧💩": {"name": "带薪健身", "parts": ["🏃", "💧", "💩"], "effect": "回复 10 HP，本场战斗 HP 上限 +5", "logic": "paid_gym"},
+	"👍👍": {"name": "优秀员工", "parts": ["👍", "👍"], "effect": "获得 20 点护盾并回复 1 AP", "logic": "excellent_employee"},
+	"💩💩": {"name": "拉屎大师", "parts": ["💩", "💩"], "effect": "使敌人中毒层数翻倍", "logic": "poop_master"},
+	"⌨️⌨️⌨️": {"name": "疯狂输出", "parts": ["⌨️", "⌨️", "⌨️"], "effect": "造成 35 点爆发伤害", "logic": "crazy_output"},
+	"📑📑": {"name": "深度复盘", "parts": ["📑", "📑"], "effect": "触发本回合所有已打出卡牌的效果各一次", "logic": "deep_review"},
+	"💡💡": {"name": "头脑风暴", "parts": ["💡", "💡"], "effect": "抽 3 张牌并回复 1 AP", "logic": "brainstorm"},
+	"🏃🏃": {"name": "职场幻影", "parts": ["🏃", "🏃"], "effect": "获得 2 回合闪避", "logic": "office_phantom"},
+	"☕☕": {"name": "咖啡因过载", "parts": ["☕", "☕"], "effect": "获得 2 AP，抽 2 张牌，扣 5 HP", "logic": "caffeine_overload"},
+	"💻⌨️": {"name": "远程输出", "parts": ["💻", "⌨️"], "effect": "造成 15 伤害，抽 1 张牌", "logic": "remote_output"},
+	"💩💩💩": {"name": "拉屎之神", "parts": ["💩", "💩", "💩"], "effect": "中毒层数翻 3 倍", "logic": "poop_god"},
+	"📁📑": {"name": "归档整理", "parts": ["📁", "📑"], "effect": "获得 15 护盾并抽 1 张牌", "logic": "file_archive"},
+	"🖱️🖱️🖱️": {"name": "连点器", "parts": ["🖱️", "🖱️", "🖱️"], "effect": "造成 20 点伤害", "logic": "auto_clicker"},
+	"💼👍": {"name": "带薪面试", "parts": ["💼", "👍"], "effect": "获得 10 护盾并抽 2 张牌", "logic": "paid_interview"},
+	"📧📧": {"name": "全员抄送", "parts": ["📧", "📧"], "effect": "抽 2 张牌并造成 12 伤害", "logic": "cc_everyone"},
+	"🧘💤": {"name": "心理假", "parts": ["🧘", "💤"], "effect": "回复 25 HP 并回复 1 AP", "logic": "mental_health"},
+	"💰💼": {"name": "风险投资", "parts": ["💰", "💼"], "effect": "获得 2 AP 并抽 2 张牌", "logic": "venture_capital"},
+	"📄⌨️": {"name": "撰写报告", "parts": ["📄", "⌨️"], "effect": "造成 18 伤害并获得 8 护盾", "logic": "write_report"},
+	"⌨️🔌": {"name": "全线崩溃", "parts": ["⌨️", "🔌"], "effect": "造成 60 伤害，下回合 AP 减半", "logic": "system_crash"},
+	"💤🧘💧": {"name": "带薪长假", "parts": ["💤", "🧘", "💧"], "effect": "回复 40 HP，下回合抽牌 +3", "logic": "long_vacation"},
+	"👍📊📈": {"name": "职场精英", "parts": ["👍", "📊", "📈"], "effect": "获得 20 护盾，下一次伤害翻倍", "logic": "office_elite"},
+	"🔌💻": {"name": "断网了", "parts": ["🔌", "💻"], "effect": "老板下回合发呆，抽 2 张牌", "logic": "no_internet"}
 }
 
 var character_combos = {
 	"博姆 (Boomtail)": {
 		"🔥⌨️": {"name": "愤怒的键盘侠", "parts": ["🔥", "⌨️"], "effect": "本回合所有键盘伤害变为 3 倍", "logic": "angry_keyboard"},
 		"🔥💣🧨": {"name": "核能爆破", "parts": ["🔥", "💣", "🧨"], "effect": "造成 30 点伤害，火大层数翻三倍", "logic": "nuclear_bomb"},
-		"⌨️⌨️🔥": {"name": "加班狂魔", "parts": ["⌨️", "⌨️", "🔥"], "effect": "造成 25 点无视防御伤害", "logic": "overtime_demon"}
+		"⌨️⌨️🔥": {"name": "加班狂魔", "parts": ["⌨️", "⌨️", "🔥"], "effect": "造成 25 点无视防御伤害", "logic": "overtime_demon"},
+		"🔥🌋": {"name": "火山爆发", "parts": ["🔥", "🌋"], "effect": "消耗所有火大，每层造成 15 伤害", "logic": "volcano_eruption"}
 	},
 	"墨里 (Inkwell)": {
 		"💩🌊": {
@@ -179,7 +200,8 @@ var character_combos = {
 			"parts": ["🐙", "💨"],
 			"effect": "本回合无敌，且移除所有垃圾卡",
 			"logic": "ink_escape"
-		}
+		},
+		"🌊🌀": {"name": "深海漩涡", "parts": ["🌊", "🌀"], "effect": "老板连续 2 回合无法行动", "logic": "deep_sea_vortex"}
 	},
 	"莱奥 (Leo)": {
 		"📊📈🍞": {
@@ -193,7 +215,8 @@ var character_combos = {
 			"parts": ["📊", "📈", "📊"],
 			"effect": "重复释放本回合打出的所有数据卡效果",
 			"logic": "loop_report"
-		}
+		},
+		"📊📑": {"name": "季度审计", "parts": ["📊", "📑"], "effect": "立即结算并爆发所有记录数值的 2 倍", "logic": "quarterly_audit"}
 	},
 	"苏珊 (Susan)": {
 		"❌📋": {
@@ -207,7 +230,8 @@ var character_combos = {
 			"parts": ["⏳", "📋"],
 			"effect": "回复 20 HP，且下回合 AP +2",
 			"logic": "paid_leave"
-		}
+		},
+		"❌🚫": {"name": "一票否决", "parts": ["❌", "🚫"], "effect": "永久降低老板 10 点攻击力", "logic": "veto_power"}
 	}
 }
 
@@ -222,7 +246,32 @@ var universal_cards: Array = [
 	{"name": "老板画饼", "emoji": "🍞", "cost": 1, "description": "获得 6 点护盾，抽 1 张牌", "type": "shield_draw", "value": 6},
 	{"name": "极限跃动", "emoji": "🏃", "cost": 1, "description": "获得 1 回合闪避并抽 1 张牌", "type": "evasion_draw", "value": 1},
 	{"name": "灵光一闪", "emoji": "💡", "cost": 1, "description": "抽 2 张牌", "type": "draw_only", "value": 2},
-	{"name": "甩锅", "emoji": "🛡️", "cost": 1, "description": "获得 5 点护盾并造成 3 点伤害", "type": "shield_attack", "value": 5}
+	{"name": "甩锅", "emoji": "🛡️", "cost": 1, "description": "获得 5 点护盾并造成 3 点伤害", "type": "shield_attack", "value": 5},
+	{"name": "老板的赞赏", "emoji": "👍", "cost": 1, "description": "获得 10 点护盾", "type": "shield", "value": 10},
+	{"name": "周报汇总", "emoji": "📑", "cost": 1, "description": "造成 8 点伤害，若本回合打出过 ⌨️ 则伤害翻倍", "type": "attack_conditional_keyboard", "value": 8},
+	{"name": "团队协作", "emoji": "🤝", "cost": 1, "description": "抽 2 张牌", "type": "draw_only", "value": 2},
+	{"name": "充电宝", "emoji": "🔋", "cost": 1, "description": "下回合额外获得 2 点摸鱼力", "type": "next_turn_ap", "value": 2},
+	{"name": "业绩下滑", "emoji": "📉", "cost": 1, "description": "使敌人进入易伤状态 (受到伤害+5)", "type": "debuff_def", "value": 5},
+	{"name": "接个电话", "emoji": "📞", "cost": 1, "description": "获得 1 回合闪避，下回合抽牌 -1", "type": "evade_penalty_draw", "value": 1},
+	{"name": "加班餐", "emoji": "🥪", "cost": 1, "description": "回复 12 HP", "type": "heal", "value": 12},
+	{"name": "远程办公", "emoji": "💻", "cost": 1, "description": "造成 8 伤害，抽 1 张牌", "type": "attack_draw", "value": 8},
+	{"name": "日程表", "emoji": "📅", "cost": 1, "description": "抽 1 张牌，若它是 Emoji 卡则其消耗变为 0", "type": "draw_discount", "value": 1},
+	{"name": "文件夹", "emoji": "📁", "cost": 1, "description": "获得 5 护盾，若下一张是 📑 则护盾+10", "type": "shield_folder", "value": 5},
+	{"name": "扩音器", "emoji": "📣", "cost": 1, "description": "使你的下一次攻击伤害翻倍", "type": "buff_next_attack", "value": 2},
+	{"name": "修复Bug", "emoji": "🛠️", "cost": 1, "description": "回复 5 HP，移除手牌中 1 张垃圾卡", "type": "heal_remove_junk", "value": 5},
+	{"name": "公文包", "emoji": "💼", "cost": 1, "description": "随机获得 1 张当前英雄的专属卡", "type": "draw_hero_card", "value": 1},
+	{"name": "鼠标点击", "emoji": "🖱️", "cost": 0, "description": "造成 2 点伤害", "type": "attack", "value": 2},
+	{"name": "邮件确认", "emoji": "📧", "cost": 1, "description": "造成 5 伤害并抽牌。若抽到 ⌨️ 则追加 10 伤害", "type": "attack_draw_email", "value": 5},
+	{"name": "公司大楼", "emoji": "🏢", "cost": 1, "description": "获得等于手牌数 x 2 的护盾", "type": "shield_hand", "value": 2},
+	{"name": "冥想", "emoji": "🧘", "cost": 1, "description": "回复 5 HP，下回合摸鱼力 +1", "type": "heal_ap_next", "value": 5},
+	{"name": "发工资", "emoji": "💰", "cost": 1, "description": "下回合摸鱼力 +3", "type": "ap_investment", "value": 3},
+	{"name": "打印文件", "emoji": "📄", "cost": 1, "description": "获得 4 护盾，并将一张 📑 放入弃牌堆", "type": "shield_generate_review", "value": 4},
+	{"name": "团建干杯", "emoji": "🥂", "cost": 1, "description": "本回合所有手牌消耗 -1 (最低为 0)", "type": "cost_reduction", "value": 1},
+	{"name": "存档", "emoji": "💾", "cost": 1, "description": "本回合结束时不弃掉手牌", "type": "save_hand"},
+	{"name": "拔电源", "emoji": "🔌", "cost": 2, "description": "造成 40 伤害，立即结束回合", "type": "pull_plug", "value": 40},
+	{"name": "摸鱼洗手", "emoji": "🧼", "cost": 1, "description": "移除自身所有负面状态", "type": "clean_status"},
+	{"name": "快递到了", "emoji": "📦", "cost": 1, "description": "随机获得 2 张通用卡", "type": "delivery_cards", "value": 2},
+	{"name": "裁员名单", "emoji": "📉", "cost": 2, "description": "消耗所有护盾，每点护盾造成 2 倍伤害", "type": "layoff_list", "value": 2}
 ]
 
 # 垃圾卡/诅咒卡定义

@@ -12,9 +12,9 @@ func _ready():
 	label.add_theme_color_override("font_outline_color", Color.BLACK)
 	label.add_theme_constant_override("outline_size", 12)
 
-# 显示伤害数字
-func pop_up(amount: int, is_critical: bool):
-	label.text = str(amount)
+# 显示伤害数字或文本
+func pop_up(value: Variant, is_critical: bool):
+	label.text = str(value)
 	if is_critical: 
 		label.modulate = Color.GOLD # 大数字用金色
 		label.add_theme_font_size_override("font_size", 96) # 进一步增加暴击大小

@@ -40,4 +40,18 @@ card_pool = [{
 "name": "本命核心：松果",
 "type": "attack_seed",
 "value": 5
+}, {
+"cost": 2,
+"description": "造成 15 伤害，并施加 2 层火大",
+"emoji": "🌋",
+"name": "熔岩喷发",
+"type": "attack_fire_burst",
+"value": 15
+}, {
+"cost": 1,
+"description": "产生一张随机 🔥 卡放入手牌",
+"emoji": "🧨",
+"name": "紧急引信",
+"type": "generate_fire_card",
+"value": 1
 }]

@@ -140,6 +140,12 @@ theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")
 value = 100.0
 show_percentage = false
 
+[node name="EnemyStatusContainer" type="HBoxContainer" parent="TopArea/EnemyInfo"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 5
+alignment = 1
+
 [node name="IntentLabel" type="Label" parent="TopArea/EnemyInfo"]
 unique_name_in_owner = true
 layout_mode = 2

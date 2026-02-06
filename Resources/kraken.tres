@@ -40,4 +40,18 @@ card_pool = [{
 "name": "本命核心：触手",
 "type": "attack_steal",
 "value": 5
+}, {
+"cost": 1,
+"description": "获得 10 护盾，抽 1 张牌",
+"emoji": "🌀",
+"name": "深海之眼",
+"type": "shield_draw",
+"value": 10
+}, {
+"cost": 1,
+"description": "造成 5 伤害，下回合老板攻击力 -5",
+"emoji": "🦑",
+"name": "乌贼喷墨",
+"type": "debuff_atk_next",
+"value": 5
 }]

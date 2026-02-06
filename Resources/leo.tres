@@ -40,4 +40,18 @@ card_pool = [{
 "name": "本命核心：图表",
 "type": "attack_draw_record",
 "value": 20
+}, {
+"cost": 1,
+"description": "记录当前护盾值的 2 倍作为下次伤害",
+"emoji": "📊",
+"name": "饼图陷阱",
+"type": "record_shield_dmg",
+"value": 2
+}, {
+"cost": 1,
+"description": "抽 1 张牌，回复 1 AP",
+"emoji": "📑",
+"name": "季度报告",
+"type": "draw_ap",
+"value": 1
 }]

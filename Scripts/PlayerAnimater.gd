@@ -91,3 +91,19 @@ func shake_screen(intensity: float, duration: float):
 	
 	# 滚回原位
 	t.tween_property(parent, "position", original_pos, 0.05)
+
+# --- 4. 玩家躲避 (Player Evade) ---
+func play_evade_anim():
+	var parent = get_parent()
+	if not parent is Control: return
+	var sprite = %HeroSprite
+	if not sprite: return
+	
+	var original_pos = sprite.position
+	var t = create_tween()
+	
+	# 快速侧移一下
+	t.tween_property(sprite, "position:x", original_pos.x - 40, 0.1).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	t.tween_property(sprite, "modulate:a", 0.5, 0.1)
+	t.tween_property(sprite, "position:x", original_pos.x, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(sprite, "modulate:a", 1.0, 0.2)

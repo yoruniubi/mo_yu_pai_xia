@@ -16,12 +16,14 @@ extends Control
 @onready var game_over_layer = %GameOverLayer
 @onready var restart_button = %RestartButton
 @onready var status_container = %StatusContainer
+@onready var enemy_status_container = %EnemyStatusContainer
 
 # --- 配置参数 ---
 var card_scene = preload("res://Scenes/battle_card.tscn")
 var floating_number_scene = preload("res://Scenes/floating_number.tscn")
 var hand_cards = []
 var current_sequence = []
+var cards_played_this_turn = [] # 记录本回合打出的所有卡牌数据
 var last_player_card_data = {} # 记录玩家最后出的牌，供鹦鹉复制
 var draw_pile = []
 var discard_pile = []
@@ -49,6 +51,10 @@ var enemy_vulnerability = 0 # 敌人受到的额外伤害
 var skip_enemy_turn = false
 var next_turn_extra_draws = 0
 var next_turn_extra_ap = 0
+var next_attack_multiplier = 1.0 # 扩音器效果
+var cost_reduction_active = false # 团建干杯效果
+var save_hand_this_turn = false # 存档效果
+var ap_multiplier_next_turn = 1.0 # 全线崩溃效果
 
 # 当前激活的连招池
 var active_combos = {}
@@ -432,9 +438,12 @@ func show_game_over():
 
 func start_player_turn():
 	end_turn_button.disabled = false
-	current_ap = GameManager.max_ap + next_turn_extra_ap
+	current_ap = int((GameManager.max_ap + next_turn_extra_ap) * ap_multiplier_next_turn)
 	next_turn_extra_ap = 0
+	ap_multiplier_next_turn = 1.0
 	poop_played_this_turn = false
+	cards_played_this_turn.clear()
+	cost_reduction_active = false
 	
 	# 回合开始重置护盾
 	hero_shield = 0
@@ -464,6 +473,13 @@ func start_player_turn():
 	if is_waiting_next_turn:
 		is_waiting_next_turn = false
 		print("本回合待岗结束，保留手牌继续行动")
+	elif save_hand_this_turn:
+		save_hand_this_turn = false
+		print("存档生效：保留手牌并补牌")
+		var draw_count = (5 + next_turn_extra_draws) - hand_cards.size()
+		next_turn_extra_draws = 0
+		for i in range(max(0, draw_count)):
+			draw_card()
 	else:
 		# 检查手牌中的“虚假目标”
 		var draw_count = 5 + next_turn_extra_draws
@@ -488,11 +504,15 @@ func start_player_turn():
 
 func apply_damage_to_hero(amount: int):
 	var final_damage = amount
-	if %AnimationManager:
-		%AnimationManager.play_player_hit_anim()
 	
 	if is_evading:
-		final_damage /= 2
+		if %AnimationManager:
+			%AnimationManager.play_evade_anim()
+		spawn_floating_number("MISS", false, hero_sprite.global_position + Vector2(0, -50), Color.CYAN)
+		return
+		
+	if %AnimationManager:
+		%AnimationManager.play_player_hit_anim()
 	
 	# 优先扣除护盾
 	if hero_shield > 0:
@@ -602,6 +622,9 @@ func _on_card_played(card_node):
 	var data = card_node.card_data
 	var cost = data.get("cost", 1)
 	
+	if cost_reduction_active:
+		cost = max(0, cost - 1)
+	
 	# KPI 考核影响：手牌中有 KPI 卡时，Combo 卡消耗 +1
 	var has_kpi = false
 	for c in hand_cards:
@@ -627,8 +650,17 @@ func _on_card_played(card_node):
 			content = data.image
 		%AnimationManager.play_player_attack_anim(content)
 	
+	var type = data.get("type", "")
+	# 特殊逻辑：文件夹配合周报
+	if type == "attack_conditional_keyboard" and not cards_played_this_turn.is_empty():
+		var last = cards_played_this_turn.back()
+		if last.get("emoji") == "📁":
+			apply_shield_to_hero(10)
+			spawn_floating_number("ARCHIVED", false, hero_sprite.global_position + Vector2(0, -100), Color.CYAN)
+
 	execute_card_effect(data)
 	last_player_card_data = data
+	cards_played_this_turn.append(data)
 	
 	# 垃圾卡也会进入弃牌堆以持续污染牌组
 	discard_pile.append(data)
@@ -700,28 +732,32 @@ func update_hand_combo_hints():
 func update_status_display():
 	for child in status_container.get_children():
 		child.queue_free()
+	if enemy_status_container:
+		for child in enemy_status_container.get_children():
+			child.queue_free()
 	
 	# 玩家状态
 	if is_evading:
-		_add_status_badge(" 闪避", Color.CYAN)
+		_add_status_badge(status_container, " 闪避", Color.CYAN)
 	if keyboard_buff_active:
-		_add_status_badge("⌨️ 键盘侠", Color.ORANGE)
+		_add_status_badge(status_container, "⌨️ 键盘侠", Color.ORANGE)
 	if has_reflect_shield:
-		_add_status_badge("🛡️ 反伤", Color.PURPLE)
+		_add_status_badge(status_container, "🛡️ 反伤", Color.PURPLE)
 	if false_hope_stacks > 0:
-		_add_status_badge("🍞 希望 x%d" % false_hope_stacks, Color.YELLOW)
+		_add_status_badge(status_container, "🍞 希望 x%d" % false_hope_stacks, Color.YELLOW)
 	
 	# 敌人状态
-	if enemy_fire_stacks > 0:
-		_add_status_badge("BOSS: 🔥 火大 x%d" % enemy_fire_stacks, Color.RED)
-	if enemy_vulnerability > 0:
-		_add_status_badge("BOSS: 💔 易伤 +%d" % enemy_vulnerability, Color.CORAL)
-	if enemy_atk_reduction > 0:
-		_add_status_badge("BOSS: 📉 虚弱 -%d" % enemy_atk_reduction, Color.DARK_GRAY)
-	if enemy_poison_stacks > 0:
-		_add_status_badge("BOSS: 🤢 中毒 x%d" % enemy_poison_stacks, Color.GREEN_YELLOW)
+	if enemy_status_container:
+		if enemy_fire_stacks > 0:
+			_add_status_badge(enemy_status_container, "🔥 火大 x%d" % enemy_fire_stacks, Color.RED)
+		if enemy_vulnerability > 0:
+			_add_status_badge(enemy_status_container, "💔 易伤 +%d" % enemy_vulnerability, Color.CORAL)
+		if enemy_atk_reduction > 0:
+			_add_status_badge(enemy_status_container, "📉 虚弱 -%d" % enemy_atk_reduction, Color.DARK_GRAY)
+		if enemy_poison_stacks > 0:
+			_add_status_badge(enemy_status_container, "🤢 中毒 x%d" % enemy_poison_stacks, Color.GREEN_YELLOW)
 
-func _add_status_badge(text: String, color: Color):
+func _add_status_badge(container: Control, text: String, color: Color):
 	var panel = PanelContainer.new()
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(color.r, color.g, color.b, 0.25)
@@ -737,7 +773,7 @@ func _add_status_badge(text: String, color: Color):
 	label.add_theme_font_size_override("font_size", 16)
 	label.add_theme_color_override("font_color", color)
 	panel.add_child(label)
-	status_container.add_child(panel)
+	container.add_child(panel)
 
 func update_emoji_slots():
 	for child in %EmojiSlot.get_children():
@@ -850,6 +886,87 @@ func trigger_combo(combo_data):
 			apply_heal_to_hero(10)
 			GameManager.max_player_hp += 5
 			hero_hp_bar.max_value = GameManager.max_player_hp
+		"excellent_employee":
+			apply_shield_to_hero(20)
+			current_ap += 1
+		"poop_master":
+			enemy_poison_stacks *= 2
+			spawn_floating_number("POISON x2", false, %BossSprite.global_position + Vector2(0, -100), Color.GREEN_YELLOW)
+		"crazy_output":
+			apply_damage_to_enemy(35)
+		"deep_review":
+			# 复制本回合之前打出的所有卡牌效果（不包括这张连招触发卡本身，但 cards_played_this_turn 已经记录了）
+			# 为了防止无限递归，我们只复制基础效果
+			var cards_to_copy = cards_played_this_turn.duplicate()
+			for card_data in cards_to_copy:
+				# 排除掉触发连招的 Emoji 卡，避免逻辑混乱
+				if card_data.get("emoji") == "":
+					execute_card_effect(card_data)
+		"brainstorm":
+			for i in range(3): draw_card()
+			current_ap += 1
+		"office_phantom":
+			is_evading = true
+			set_meta("evasion_turns", 2)
+		"caffeine_overload":
+			current_ap += 2
+			for i in range(2): draw_card()
+			apply_damage_to_hero(5)
+		"remote_output":
+			apply_damage_to_enemy(15)
+			draw_card()
+		"poop_god":
+			enemy_poison_stacks *= 3
+			spawn_floating_number("POISON x3", false, %BossSprite.global_position + Vector2(0, -100), Color.GREEN_YELLOW)
+		"file_archive":
+			apply_shield_to_hero(15)
+			draw_card()
+		"auto_clicker":
+			apply_damage_to_enemy(20)
+		"paid_interview":
+			apply_shield_to_hero(10)
+			for i in range(2): draw_card()
+		"cc_everyone":
+			for i in range(2): draw_card()
+			apply_damage_to_enemy(12)
+		"mental_health":
+			apply_heal_to_hero(25)
+			current_ap += 1
+		"venture_capital":
+			current_ap += 2
+			for i in range(2): draw_card()
+		"write_report":
+			apply_damage_to_enemy(18)
+			apply_shield_to_hero(8)
+		"volcano_eruption":
+			var dmg = enemy_fire_stacks * 15
+			apply_damage_to_enemy(dmg)
+			enemy_fire_stacks = 0
+			spawn_floating_number("VOLCANO!", true, %BossSprite.global_position)
+		"deep_sea_vortex":
+			skip_enemy_turn = true
+			set_meta("skip_next_intent", true)
+			spawn_floating_number("STUNNED", false, %BossSprite.global_position + Vector2(0, -100), Color.CYAN)
+		"quarterly_audit":
+			apply_damage_to_enemy(recorded_data_value * 2)
+			spawn_floating_number("AUDITED", true, %BossSprite.global_position)
+		"veto_power":
+			enemy_atk_reduction += 10
+			# 这里我们可以记录一个永久减攻的状态，或者简单处理
+			spawn_floating_number("VETOED", false, %BossSprite.global_position + Vector2(0, -100), Color.RED)
+		"system_crash":
+			apply_damage_to_enemy(60)
+			ap_multiplier_next_turn = 0.5
+			spawn_floating_number("SYSTEM CRASH", true, %BossSprite.global_position, Color.RED)
+		"long_vacation":
+			apply_heal_to_hero(40)
+			next_turn_extra_draws += 3
+		"office_elite":
+			apply_shield_to_hero(20)
+			next_attack_multiplier = 2.0
+		"no_internet":
+			skip_enemy_turn = true
+			for i in range(2): draw_card()
 
 func show_combo_directory():
 	var combo_text = "--- 摸鱼连招秘籍 ---\n\n"
@@ -872,6 +989,8 @@ func execute_card_effect(data: Dictionary):
 			var dmg = value
 			if emoji == "⌨️" and keyboard_buff_active:
 				dmg *= 3
+			dmg *= next_attack_multiplier
+			next_attack_multiplier = 1.0
 			apply_damage_to_enemy(dmg)
 		"heal":
 			apply_heal_to_hero(value)
@@ -1041,6 +1160,111 @@ func execute_card_effect(data: Dictionary):
 		"heal_draw":
 			apply_heal_to_hero(value)
 			draw_card()
+		"attack_conditional_keyboard":
+			var dmg = value
+			var keyboard_played = false
+			for c in cards_played_this_turn:
+				if c.get("emoji") == "⌨️":
+					keyboard_played = true
+					break
+			if keyboard_played:
+				dmg *= 2
+			apply_damage_to_enemy(dmg)
+		"evade_penalty_draw":
+			is_evading = true
+			next_turn_extra_draws -= 1
+		"draw_discount":
+			var c = draw_card()
+			if c and c.card_data.get("emoji") != "":
+				c.card_data["cost"] = 0
+				c.update_ui()
+		"shield_folder":
+			apply_shield_to_hero(value)
+			# 逻辑在打出卡牌时判断，这里简单处理
+		"buff_next_attack":
+			next_attack_multiplier = value
+			spawn_floating_number("POWER UP!", false, hero_sprite.global_position + Vector2(0, -100), Color.ORANGE)
+		"heal_remove_junk":
+			apply_heal_to_hero(value)
+			var junk_removed = false
+			for i in range(hand_cards.size()-1, -1, -1):
+				if hand_cards[i].card_data.get("type", "").begins_with("junk"):
+					var c = hand_cards[i]
+					hand_cards.remove_at(i)
+					c.queue_free()
+					junk_removed = true
+					break
+			if junk_removed:
+				update_hand_layout()
+				spawn_floating_number("BUG FIXED", false, hero_sprite.global_position + Vector2(0, -150), Color.WHITE)
+		"draw_hero_card":
+			if GameManager.selected_hero and GameManager.selected_hero.card_pool.size() > 0:
+				var pool = GameManager.selected_hero.card_pool
+				draw_card(pool[randi() % pool.size()])
+		"attack_draw_email":
+			apply_damage_to_enemy(value)
+			var c = draw_card()
+			if c and c.card_data.get("emoji") == "⌨️":
+				apply_damage_to_enemy(10)
+				spawn_floating_number("CONFIRMED!", false, %BossSprite.global_position + Vector2(0, -150), Color.GOLD)
+		"shield_hand":
+			apply_shield_to_hero(hand_cards.size() * value)
+		"heal_ap_next":
+			apply_heal_to_hero(value)
+			next_turn_extra_ap += 1
+		"ap_investment":
+			next_turn_extra_ap += value
+			spawn_floating_number("PAYDAY!", false, hero_sprite.global_position + Vector2(0, -100), Color.GOLD)
+		"shield_generate_review":
+			apply_shield_to_hero(value)
+			discard_pile.append(GameManager.universal_cards[11].duplicate()) # 📑 周报汇总
+		"cost_reduction":
+			cost_reduction_active = true
+			for c in hand_cards:
+				c.update_ui() # 刷新 UI 显示新消耗
+		"save_hand":
+			save_hand_this_turn = true
+			spawn_floating_number("SAVED", false, hero_sprite.global_position + Vector2(0, -100), Color.GREEN)
+		"pull_plug":
+			apply_damage_to_enemy(value)
+			_on_end_turn_pressed()
+		"clean_status":
+			# 移除可能的负面状态
+			if next_turn_extra_draws < 0: next_turn_extra_draws = 0
+			ap_multiplier_next_turn = 1.0
+			spawn_floating_number("CLEANSED", false, hero_sprite.global_position + Vector2(0, -100), Color.WHITE)
+		"delivery_cards":
+			for i in range(value):
+				var card_data = GameManager.universal_cards[randi() % GameManager.universal_cards.size()].duplicate()
+				draw_card(card_data)
+		"layoff_list":
+			var dmg = hero_shield * value
+			hero_shield = 0
+			apply_damage_to_enemy(dmg)
+			update_ui_values()
+		"attack_fire_burst":
+			apply_damage_to_enemy(value)
+			enemy_fire_stacks += 2
+		"generate_fire_card":
+			if GameManager.selected_hero:
+				var fire_cards = GameManager.selected_hero.card_pool.filter(func(c): return c.get("emoji") == "🔥")
+				if fire_cards.size() > 0:
+					draw_card(fire_cards[randi() % fire_cards.size()])
+		"debuff_atk_next":
+			enemy_atk_reduction += value
+		"record_shield_dmg":
+			recorded_data_value = hero_shield * value
+			spawn_floating_number("SHIELD DATA", false, hero_sprite.global_position + Vector2(0, -100), Color.CYAN)
+		"draw_ap":
+			draw_card()
+			current_ap += value
+		"attack_debuff_atk_half":
+			apply_damage_to_enemy(value)
+			# 简化：降低老板下一击伤害
+			enemy_atk_reduction += 15 
+		"heal_vulnerability":
+			apply_heal_to_hero(value)
+			enemy_vulnerability += 5
 
 func apply_damage_to_enemy(amount: int):
 	if is_battle_over: return
@@ -1181,9 +1405,9 @@ func _update_enemy_intent():
 	else:
 		intent_label.text = "意图: ⚔️ %d" % base_dmg
 
-func spawn_floating_number(amount: int, is_critical: bool, pos: Vector2, color: Color = Color.WHITE):
+func spawn_floating_number(value: Variant, is_critical: bool, pos: Vector2, color: Color = Color.WHITE):
 	var fn = floating_number_scene.instantiate()
 	add_child(fn)
 	fn.global_position = pos
-	fn.pop_up(amount, is_critical)
+	fn.pop_up(value, is_critical)
 	fn.modulate = color
