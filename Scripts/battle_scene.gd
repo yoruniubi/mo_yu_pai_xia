@@ -969,16 +969,59 @@ func trigger_combo(combo_data):
 			for i in range(2): draw_card()
 
 func show_combo_directory():
-	var combo_text = "--- 摸鱼连招秘籍 ---\n\n"
-	for recipe in active_combos:
-		var data = active_combos[recipe]
-		combo_text += "【%s】 %s\n   └─ %s\n\n" % [recipe, data.name, data.effect]
-	
 	var dialog = AcceptDialog.new()
 	dialog.title = "连招一览"
-	dialog.dialog_text = combo_text
+	dialog.ok_button_text = "关闭"
+	dialog.dialog_text = ""
+	dialog.min_size = Vector2i(760, 520)
 	add_child(dialog)
-	dialog.popup_centered()
+
+	var container = MarginContainer.new()
+	container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	container.add_theme_constant_override("margin_left", 14)
+	container.add_theme_constant_override("margin_top", 12)
+	container.add_theme_constant_override("margin_right", 14)
+	container.add_theme_constant_override("margin_bottom", 48)
+	dialog.add_child(container)
+
+	var scroll = ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	container.add_child(scroll)
+
+	var text = RichTextLabel.new()
+	text.bbcode_enabled = true
+	text.scroll_active = false
+	text.fit_content = true
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.custom_minimum_size = Vector2(680, 0)
+	scroll.add_child(text)
+
+	var combo_text = "[b]--- 摸鱼连招秘籍 ---[/b]\n\n"
+	var universal_keys = GameManager.universal_combos.keys()
+	var hero_keys: Array = []
+
+	if GameManager.selected_hero and GameManager.character_combos.has(GameManager.selected_hero.character_name):
+		hero_keys = GameManager.character_combos[GameManager.selected_hero.character_name].keys()
+
+	universal_keys.sort()
+	hero_keys.sort()
+
+	combo_text += "[color=#8fb9aa][b]通用连招[/b][/color]\n"
+	for recipe in universal_keys:
+		if active_combos.has(recipe):
+			var data = active_combos[recipe]
+			combo_text += "• [b]%s[/b]  %s\n    %s\n\n" % [recipe, data.name, data.effect]
+
+	if hero_keys.size() > 0:
+		combo_text += "[color=#ffb86c][b]角色专属连招[/b][/color]\n"
+		for recipe in hero_keys:
+			if active_combos.has(recipe):
+				var data = active_combos[recipe]
+				combo_text += "• [b]%s[/b]  %s\n    %s\n\n" % [recipe, data.name, data.effect]
+
+	text.text = combo_text
+	dialog.popup_centered_ratio(0.85)
 
 func execute_card_effect(data: Dictionary):
 	var type = data.get("type", "")
