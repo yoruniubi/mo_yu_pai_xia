@@ -7,12 +7,29 @@ var selected_hero: CharacterData
 var player_hp: int = 100
 var max_player_hp: int = 100
 var player_deck: Array = []
+var is_tutorial_mode: bool = false
 
 # 关卡管理
 var current_level: int = 1
 var max_levels: int = 10
 var evolution_path: String = "" 
 var max_ap: int = 3 # 全局最大 AP
+
+func _ready():
+	# 自动适配屏幕拉伸
+	get_window().min_size = Vector2i(360, 640)
+	if OS.get_name() in ["Windows", "macOS", "Linux"]:
+		# PC端默认窗口大小调整或支持全屏快捷键
+		DisplayServer.window_set_title("摸鱼牌侠 - PC版")
+
+func _input(event):
+	# PC端全屏快捷键 (F11)
+	if event is InputEventKey and event.keycode == KEY_F11 and event.pressed:
+		var mode = DisplayServer.window_get_mode()
+		if mode != DisplayServer.WINDOW_MODE_FULLSCREEN:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+		else:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 
 func start_game(hero: CharacterData):
 	selected_hero = hero
@@ -75,13 +92,16 @@ func get_random_reward_cards(count: int = 3) -> Array:
 func load_current_level_scene():
 	var scene_path = "res://Scenes/battle_scene.tscn"
 	
-	match current_level:
-		3, 5, 7, 9:
-			scene_path = "res://Scenes/event_scene.tscn"
-		10:
-			scene_path = "res://Scenes/boss_stage.tscn"
-		_:
-			scene_path = "res://Scenes/battle_scene.tscn"
+	if is_tutorial_mode and current_level == 1:
+		scene_path = "res://Scenes/tutorial_scene.tscn"
+	else:
+		match current_level:
+			3, 5, 7, 9:
+				scene_path = "res://Scenes/event_scene.tscn"
+			10:
+				scene_path = "res://Scenes/boss_stage.tscn"
+			_:
+				scene_path = "res://Scenes/battle_scene.tscn"
 			
 	var tree = Engine.get_main_loop() as SceneTree
 	if tree:

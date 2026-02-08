@@ -19,34 +19,21 @@ func _ready():
 	initial_title_y = $Label.position.y
 	
 	# 3. 初始化视觉
+	_add_tutorial_button()
 	apply_css_to_buttons()
 	animate_title()
-	
-	# 4. 确保海浪初始设置（代码双保险）
-	setup_waves()
 
-func setup_waves():
-	# 确保图片不居中，方便我们计算
-	$WaveBack.centered = false
-	$WaveFront.centered = false
+func _add_tutorial_button():
+	var tutorial_btn = Button.new()
+	tutorial_btn.text = "新手教学"
+	tutorial_btn.name = "tutorialbutton"
+	$VBoxContainer.add_child(tutorial_btn)
+	$VBoxContainer.move_child(tutorial_btn, 1) # 插在开始和退出之间
 	
-	# 设置海浪的水平位置 (从屏幕最左边 0 开始)
-	$WaveBack.position.x = 0
-	$WaveFront.position.x = 0
-	
-	# 设置海浪的垂直位置 (放在标题文字下方)
-	# 假设你的标题初始 Y 是 initial_title_y
-	var wave_y = initial_title_y + $Label.size.y * 0.7 # 稍微没过文字一点点
-	$WaveBack.position.y = wave_y
-	$WaveFront.position.y = wave_y + 10 # 前浪稍微低一点，有错落感
-	#$WaveBack.modulate = Color(0.302, 0.502, 0.8, 0.616) 
-	#$WaveFront.modulate = Color(0.6, 0.8, 1.0, 0.839)
-	$WaveBack.region_enabled = true
-	$WaveBack.region_rect = Rect2(0, 0, 720, 120)
-	$WaveFront.region_enabled = true
-	$WaveFront.region_rect = Rect2(0, 0, 720, 120)
-	
-	
+	tutorial_btn.pressed.connect(func():
+		GameManager.is_tutorial_mode = true
+		get_tree().change_scene_to_file("res://Scenes/character_selection.tscn")
+	)
 
 func apply_css_to_buttons():
 	for btn in $VBoxContainer.get_children():
@@ -116,18 +103,8 @@ func animate_title():
 	tween_rot.tween_property(title, "rotation_degrees", 3.0, 1.8).set_trans(Tween.TRANS_SINE)
 	tween_rot.tween_property(title, "rotation_degrees", -3.0, 1.8).set_trans(Tween.TRANS_SINE)
 
-func _process(delta):
-	# 1. 无限滚动
-	# 检查节点是否存在防止报错
-	if has_node("WaveBack") and has_node("WaveFront"):
-		$WaveBack.region_rect.position.x += 40 * delta
-		$WaveFront.region_rect.position.x += 70 * delta
-	
-	# 2. 整体浮动效果
+func _process(_delta):
+	# 整体浮动效果
 	var time = Time.get_ticks_msec() / 1000.0
 	# 标题平滑浮动（基于记录的初始位置）
 	$Label.position.y = initial_title_y + sin(time * 1.5) * 15
-	
-	# 海浪也带一点点上下感
-	if has_node("WaveFront"):
-		$WaveFront.position.y += sin(time * 2.0) * 0.1
