@@ -33,13 +33,16 @@ func _input(event):
 
 func start_game(hero: CharacterData):
 	selected_hero = hero
+	reset_run()
+	load_current_level_scene()
+
+func reset_run():
 	player_hp = 100
 	max_player_hp = 100
 	current_level = 1
 	max_ap = 3
 	evolution_path = ""
 	initialize_deck()
-	load_current_level_scene()
 
 func initialize_deck():
 	player_deck.clear()
@@ -258,11 +261,11 @@ var character_combos = {
 # 通用基础卡池
 var universal_cards: Array = [
 	{"name": "键盘输出", "emoji": "⌨️", "cost": 1, "description": "造成 5 点伤害", "type": "attack", "value": 5},
-	{"name": "摸鱼喝水", "emoji": "💧", "cost": 1, "description": "回复 5 点压力 (HP)", "type": "heal", "value": 5},
+	{"name": "摸鱼喝水", "emoji": "💧", "cost": 1, "description": "回复 7 点压力 (HP)", "type": "heal", "value": 7},
 	{"name": "小丑自嘲", "emoji": "🤡", "cost": 1, "description": "造成 3 点伤害，抽 1 张牌", "type": "attack_draw", "value": 3},
 	{"name": "午后咖啡", "emoji": "☕", "cost": 0, "description": "获得 1 点摸鱼力 (AP) 并抽一张牌", "type": "buff_ap_draw", "value": 1},
 	{"name": "带薪拉屎", "emoji": "💩", "cost": 1, "description": "施加 3 层中毒并抽 1 张牌", "type": "special_poop"},
-	{"name": "工位补觉", "emoji": "💤", "cost": 1, "description": "回复 8 HP，抽 1 张牌", "type": "heal_draw", "value": 8},
+	{"name": "工位补觉", "emoji": "💤", "cost": 1, "description": "回复 10 HP，抽 1 张牌", "type": "heal_draw", "value": 10},
 	{"name": "老板画饼", "emoji": "🍞", "cost": 1, "description": "获得 6 点护盾，抽 1 张牌", "type": "shield_draw", "value": 6},
 	{"name": "极限跃动", "emoji": "🏃", "cost": 1, "description": "获得 1 回合闪避并抽 1 张牌", "type": "evasion_draw", "value": 1},
 	{"name": "灵光一闪", "emoji": "💡", "cost": 1, "description": "抽 2 张牌", "type": "draw_only", "value": 2},
@@ -273,7 +276,7 @@ var universal_cards: Array = [
 	{"name": "充电宝", "emoji": "🔋", "cost": 1, "description": "下回合额外获得 2 点摸鱼力", "type": "next_turn_ap", "value": 2},
 	{"name": "业绩下滑", "emoji": "📉", "cost": 1, "description": "使敌人进入易伤状态 (受到伤害+5)", "type": "debuff_def", "value": 5},
 	{"name": "接个电话", "emoji": "📞", "cost": 1, "description": "获得 1 回合闪避，下回合抽牌 -1", "type": "evade_penalty_draw", "value": 1},
-	{"name": "加班餐", "emoji": "🥪", "cost": 1, "description": "回复 12 HP", "type": "heal", "value": 12},
+	{"name": "加班餐", "emoji": "🥪", "cost": 1, "description": "回复 15 HP", "type": "heal", "value": 15},
 	{"name": "远程办公", "emoji": "💻", "cost": 1, "description": "造成 8 伤害，抽 1 张牌", "type": "attack_draw", "value": 8},
 	{"name": "日程表", "emoji": "📅", "cost": 1, "description": "抽 1 张牌，若它是 Emoji 卡则其消耗变为 0", "type": "draw_discount", "value": 1},
 	{"name": "文件夹", "emoji": "📁", "cost": 1, "description": "获得 5 护盾，若下一张是 📑 则护盾+10", "type": "shield_folder", "value": 5},
@@ -283,7 +286,7 @@ var universal_cards: Array = [
 	{"name": "鼠标点击", "emoji": "🖱️", "cost": 0, "description": "造成 2 点伤害", "type": "attack", "value": 2},
 	{"name": "邮件确认", "emoji": "📧", "cost": 1, "description": "造成 5 伤害并抽牌。若抽到 ⌨️ 则追加 10 伤害", "type": "attack_draw_email", "value": 5},
 	{"name": "公司大楼", "emoji": "🏢", "cost": 1, "description": "获得等于手牌数 x 2 的护盾", "type": "shield_hand", "value": 2},
-	{"name": "冥想", "emoji": "🧘", "cost": 1, "description": "回复 5 HP，下回合摸鱼力 +1", "type": "heal_ap_next", "value": 5},
+	{"name": "冥想", "emoji": "🧘", "cost": 1, "description": "回复 7 HP，下回合摸鱼力 +1", "type": "heal_ap_next", "value": 7},
 	{"name": "发工资", "emoji": "💰", "cost": 1, "description": "下回合摸鱼力 +3", "type": "ap_investment", "value": 3},
 	{"name": "打印文件", "emoji": "📄", "cost": 1, "description": "获得 4 护盾，并将一张 📑 放入弃牌堆", "type": "shield_generate_review", "value": 4},
 	{"name": "团建干杯", "emoji": "🥂", "cost": 1, "description": "本回合所有手牌消耗 -1 (最低为 0)", "type": "cost_reduction", "value": 1},

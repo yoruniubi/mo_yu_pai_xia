@@ -513,8 +513,8 @@ func _on_back_to_menu_pressed():
 	get_tree().change_scene_to_file("res://Scenes/main_menu.tscn")
 
 func _on_restart_pressed():
-	GameManager.player_hp = GameManager.max_player_hp
-	GameManager.current_level = 1
+	GameManager.is_tutorial_mode = false
+	GameManager.reset_run()
 	GameManager.load_current_level_scene()
 
 func _style_resignation_bar(bar: ProgressBar):

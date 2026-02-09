@@ -4,7 +4,12 @@ extends Control
 var initial_title_y: float
 
 func _on_startbutton_pressed() -> void:
+	GameManager.is_tutorial_mode = false
 	print("开始游戏！")
+	get_tree().change_scene_to_file("res://Scenes/character_selection.tscn")
+
+func _on_tutorialbutton_pressed() -> void:
+	GameManager.is_tutorial_mode = true
 	get_tree().change_scene_to_file("res://Scenes/character_selection.tscn")
 
 func _on_exitbutton_pressed() -> void:
@@ -19,24 +24,16 @@ func _ready():
 	initial_title_y = $Label.position.y
 	
 	# 3. 初始化视觉
-	_add_tutorial_button()
 	apply_css_to_buttons()
 	animate_title()
 
-func _add_tutorial_button():
-	var tutorial_btn = Button.new()
-	tutorial_btn.text = "新手教学"
-	tutorial_btn.name = "tutorialbutton"
-	$VBoxContainer.add_child(tutorial_btn)
-	$VBoxContainer.move_child(tutorial_btn, 1) # 插在开始和退出之间
-	
-	tutorial_btn.pressed.connect(func():
-		GameManager.is_tutorial_mode = true
-		get_tree().change_scene_to_file("res://Scenes/character_selection.tscn")
-	)
-
 func apply_css_to_buttons():
+	# 收集所有需要美化的按钮
+	var buttons = []
 	for btn in $VBoxContainer.get_children():
+		if btn is Button: buttons.append(btn)
+	
+	for btn in buttons:
 		if btn is Button:
 			var style_normal = _create_style("#fdf5e6", 30, 8)
 			var style_hover = _create_style("#a8d8ea", 30, 12)
