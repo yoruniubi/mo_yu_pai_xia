@@ -21,11 +21,10 @@ card_pool = [{
 "value": 8
 }, {
 "cost": 2,
-"description": "本回合受到伤害减半。下回合抽牌+1",
+"description": "本回合闪避所有伤害。下回合抽牌+1",
 "emoji": "💨",
-"name": "深海潜水",
 "type": "buff_evasion",
-"value": 50
+"value": 1
 }, {
 "cost": 1,
 "description": "降低老板 3 点攻击力，持续 1 回合",

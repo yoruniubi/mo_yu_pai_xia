@@ -67,15 +67,16 @@ func initialize_deck():
 	if selected_hero and selected_hero.card_pool.size() > 0:
 		for card in selected_hero.card_pool:
 			var hero_card = card.duplicate()
+			var hero_card_name = hero_card.get("name", "")
 			# 动态更新核心卡描述以匹配最新的护盾/回血逻辑
-			if "触手" in hero_card.name:
-				hero_card.description = "偷取敌人 5 点耐性值，转化为自身防御。"
-			elif "松果" in hero_card.name:
-				hero_card.description = "造成 5 伤害，获得 1 个随机 🔥 卡。"
-			elif "图表" in hero_card.name:
-				hero_card.description = "造成 20 伤害。抽 3 张牌。记录本次伤害。回复 1 AP。"
-			elif "简历" in hero_card.name:
-				hero_card.description = "反弹本回合受到的第一次伤害。"
+			if "触手" in hero_card_name:
+				hero_card["description"] = "偷取敌人 5 点耐性值，转化为自身防御。"
+			elif "松果" in hero_card_name:
+				hero_card["description"] = "造成 5 伤害，获得 1 个随机 🔥 卡。"
+			elif "图表" in hero_card_name:
+				hero_card["description"] = "造成 20 伤害。抽 3 张牌。记录本次伤害。回复 1 AP。"
+			elif "简历" in hero_card_name:
+				hero_card["description"] = "反弹本回合受到的第一次伤害。"
 			player_deck.append(hero_card)
 	else:
 		# 兜底：再给一张键盘
