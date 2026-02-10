@@ -24,6 +24,7 @@ extends Control
 @onready var confirm_button = %ConfirmButton
 @onready var pointer = %Pointer
 @onready var mask = %Mask
+@onready var tutorial_root = $TutorialLayer
 
 # --- 战斗配置 ---
 var card_scene = preload("res://Scenes/battle_card.tscn")
@@ -37,6 +38,20 @@ var hero_shield = 0
 var enemy_hp = 50
 var current_ap = 3
 
+var highlight_targets = {}
+var highlight_padding = {
+	"enemy_hp": Vector2(18, 10),
+	"intent": Vector2(18, 10),
+	"enemy_status": Vector2(18, 10),
+	"hero_hp": Vector2(18, 10),
+	"hero_status": Vector2(18, 10),
+	"hero_status_buff": Vector2(18, 10),
+	"ap": Vector2(18, 10),
+	"hand": Vector2(25, 20),
+	"combo": Vector2(25, 15),
+	"end_turn": Vector2(18, 10)
+}
+
 const FAN_RADIUS = 800.0
 const MAX_FAN_ANGLE = 30.0
 
@@ -44,14 +59,14 @@ const MAX_FAN_ANGLE = 30.0
 var tutorial_step = 0
 var steps = [
 	{"text": "欢迎来到《摸鱼牌侠》实战演练！\n这是一场沉浸式的职场生存 Roguelike。", "target": null},
-	{"text": "首先看上方，这是老板的【耐性值（HP）】。\n归零则代表战斗胜利，老板放弃挣扎。", "target": "enemy_hp"},
-	{"text": "旁边是老板的【意图栏】。它显示了老板下一步的动作。\n比如现在，他正准备复制你的操作！", "target": "intent"},
-	{"text": "这里是老板的【状态栏】。所有的负面效果（如中毒）\n或强化状态都会显示在这里。", "target": "enemy_status"},
-	{"text": "再看下方，这是你的【压力值（HP）】。\n随加班/受击增长，满值则“过劳”，游戏结束。", "target": "hero_status"},
-	{"text": "这里是你的【状态/Buff栏】。你获得的护盾、\n闪避等增益效果都会在这里排排坐。", "target": "hero_status_buff"},
-	{"text": "核心数值：【摸鱼力（AP）】。\n打出每张 Emoji 卡牌都需要消耗它，每回合自动回复。", "target": "ap"},
-	{"text": "这些是你的【弧形手牌】。拖动或点击即可打出。\n注意：不同 Emoji 组合能触发强力连招！", "target": "hand"},
-	{"text": "这里是【序列槽】。打出的 Emoji 依次进入这里。\n试试连续打出 3 张键盘 ⌨️ 触发“疯狂输出”！", "target": "combo"},
+	{"text": "基础信息 1/3：这是老板的【耐性值（HP）】。\n归零则代表战斗胜利，老板放弃挣扎。", "target": "enemy_hp"},
+	{"text": "基础信息 2/3：这是你的【压力值（HP）】。\n随加班/受击增长，满值则“过劳”，游戏结束。", "target": "hero_hp"},
+	{"text": "基础信息 3/3：【摸鱼力（AP）】。\n打出每张 Emoji 卡牌都需要消耗它，每回合自动回复。", "target": "ap"},
+	{"text": "这里是老板的【意图栏】。它显示老板下一步的动作。\n比如现在，他正准备复制你的操作！", "target": "intent"},
+	{"text": "卡牌系统 1/2：这是你的【弧形手牌】。\n拖动或点击即可打出，构成你的生存与输出。", "target": "hand"},
+	{"text": "卡牌系统 2/2：不同 Emoji 组合会触发强力连招。\n试试连续打出 3 张键盘 ⌨️ 触发“疯狂输出”！", "target": "combo"},
+	{"text": "状态说明：你的 Buff 会显示在这里（例如护盾/闪避）。\n需要时记得查看状态栏。", "target": "hero_status_buff"},
+	{"text": "状态说明：敌人的 Debuff 会显示在这里（例如中毒/虚弱）。\n持续伤害与削弱都能在此查看。", "target": "enemy_status"},
 	{"text": "最后是【结束回合】。当你摸不动鱼时，\n点击它让老板开始他的表演。", "target": "end_turn"},
 	{"text": "教学结束！现在，尝试击败这只鹦鹉，\n开启你的“离职之路”吧！", "target": null}
 ]
@@ -61,6 +76,8 @@ func _ready():
 	BgmManager.play_music(battle_bgm)
 	
 	_setup_tutorial_battle()
+	_setup_tutorial_highlight_targets()
+	_setup_mask_material()
 	_update_ui_values()
 	
 	tutorial_layer.visible = true
@@ -115,6 +132,7 @@ func _show_step(index):
 		guidance_box.offset_bottom = 75
 		
 	pointer.hide()
+	_apply_highlight(step.target)
 	match step.target:
 		"enemy_hp":
 			_focus_ui(enemy_hp_bar.global_position + Vector2(200, 40), "👆")
@@ -122,7 +140,7 @@ func _show_step(index):
 			_focus_ui(intent_label.global_position + Vector2(100, 40), "👆")
 		"enemy_status":
 			_focus_ui(enemy_status_container.global_position + Vector2(50, 40), "👆")
-		"hero_status":
+		"hero_hp":
 			_focus_ui(hero_hp_bar.global_position + Vector2(60, -40), "👇")
 		"hero_status_buff":
 			_focus_ui(status_container.global_position + Vector2(50, -40), "👇")
@@ -134,6 +152,8 @@ func _show_step(index):
 			_focus_ui(%ComboSlotArea.global_position + Vector2(200, 80), "👆")
 		"end_turn":
 			_focus_ui(end_turn_button.global_position + Vector2(-60, 0), "👉")
+		_:
+			_apply_highlight(null)
 
 func _focus_ui(pos, icon):
 	pointer.show()
@@ -155,6 +175,52 @@ func _on_confirm_pressed():
 func _on_tutorial_finished():
 	GameManager.is_tutorial_mode = false
 	get_tree().change_scene_to_file("res://Scenes/main_menu.tscn")
+
+func _setup_tutorial_highlight_targets() -> void:
+	highlight_targets = {
+		"enemy_hp": enemy_hp_bar,
+		"intent": intent_label,
+		"enemy_status": enemy_status_container,
+		"hero_hp": hero_hp_bar,
+		"hero_status": status_container,
+		"hero_status_buff": status_container,
+		"ap": energy_label,
+		"hand": hand_container,
+		"combo": %ComboSlotArea,
+		"end_turn": end_turn_button
+	}
+
+func _setup_mask_material() -> void:
+	if not mask.material:
+		var shader = load("res://Assets/Shaders/tutorial_highlight_mask.gdshader")
+		var material = ShaderMaterial.new()
+		material.shader = shader
+		mask.material = material
+	mask.show()
+
+func _apply_highlight(target_key):
+	if target_key == null or not highlight_targets.has(target_key):
+		mask.hide()
+		return
+	var target = highlight_targets[target_key]
+	if not target:
+		mask.hide()
+		return
+	var rect = _get_global_rect(target)
+	var pad = highlight_padding.get(target_key, Vector2(12, 8))
+	var pos = rect.position - pad
+	var size = rect.size + (pad * 2.0)
+	var mat = mask.material as ShaderMaterial
+	if mat:
+		mat.set_shader_parameter("cutout_pos", pos)
+		mat.set_shader_parameter("cutout_size", size)
+		mat.set_shader_parameter("corner_radius", 12.0)
+		mat.set_shader_parameter("feather", 2.0)
+		mat.set_shader_parameter("overlay_color", Color(0, 0, 0, 0.6))
+	mask.show()
+
+func _get_global_rect(node: Control) -> Rect2:
+	return Rect2(node.global_position, node.size)
 
 func draw_card():
 	if draw_pile.is_empty(): return
@@ -250,7 +316,33 @@ func _spawn_floating_number(val, crit, pos, color = Color.WHITE):
 func _update_ui_values():
 	hero_hp_bar.value = hero_hp
 	enemy_hp_bar.value = enemy_hp
+	_ensure_hp_label(hero_hp_bar, "HeroHpValueLabel", hero_hp, Color.WHITE)
+	_ensure_hp_label(enemy_hp_bar, "EnemyHpValueLabel", enemy_hp, Color.WHITE)
 	energy_label.text = "摸鱼力: %d/3" % current_ap
+
+func _ensure_hp_label(bar: ProgressBar, label_name: String, value: int, color: Color) -> void:
+	var label = bar.get_node_or_null(label_name)
+	if not label:
+		label = Label.new()
+		label.name = label_name
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		label.anchor_left = 0
+		label.anchor_top = 0
+		label.anchor_right = 1
+		label.anchor_bottom = 1
+		label.offset_left = 0
+		label.offset_top = 0
+		label.offset_right = 0
+		label.offset_bottom = 0
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.add_theme_font_size_override("font_size", 16)
+		label.add_theme_color_override("font_color", color)
+		label.add_theme_constant_override("outline_size", 2)
+		label.add_theme_color_override("font_outline_color", Color.BLACK)
+		bar.add_child(label)
+	bar.show_percentage = false
+	label.text = str(value)
 
 func _update_emoji_slots():
 	for child in emoji_slot_container.get_children(): child.queue_free()

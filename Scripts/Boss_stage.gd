@@ -167,6 +167,8 @@ func _create_style(color_hex: String, radius: int, shadow: int) -> StyleBoxFlat:
 func update_ui_values():
 	hero_hp_bar.value = hero_hp
 	enemy_hp_bar.value = enemy_hp
+	_ensure_hp_label(hero_hp_bar, "HeroHpValueLabel", hero_hp, Color.WHITE)
+	_ensure_hp_label(enemy_hp_bar, "EnemyHpValueLabel", enemy_hp, Color.WHITE)
 	
 	# 同步护盾 UI (与 battle_scene 一致)
 	var shield_display = hero_hp_bar.get_node_or_null("ShieldDisplay")
@@ -211,6 +213,30 @@ func update_ui_values():
 		_style_resignation_bar(bar)
 	# 同步到全局
 	GameManager.player_hp = hero_hp
+
+func _ensure_hp_label(bar: ProgressBar, label_name: String, value: int, color: Color) -> void:
+	var label = bar.get_node_or_null(label_name)
+	if not label:
+		label = Label.new()
+		label.name = label_name
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		label.anchor_left = 0
+		label.anchor_top = 0
+		label.anchor_right = 1
+		label.anchor_bottom = 1
+		label.offset_left = 0
+		label.offset_top = 0
+		label.offset_right = 0
+		label.offset_bottom = 0
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.add_theme_font_size_override("font_size", 16)
+		label.add_theme_color_override("font_color", color)
+		label.add_theme_constant_override("outline_size", 2)
+		label.add_theme_color_override("font_outline_color", Color.BLACK)
+		bar.add_child(label)
+	bar.show_percentage = false
+	label.text = str(value)
 
 func _initialize_combos():
 	active_combos = GameManager.universal_combos.duplicate(true)
@@ -1012,21 +1038,34 @@ func update_status_display():
 		child.queue_free()
 	
 	if is_evading:
-		_add_status_label("💨 闪避", Color.CYAN)
+		_add_status_badge(status_container, "💨 闪避", Color.CYAN, "闪避：受到攻击时伤害减半")
 	if keyboard_buff_active:
-		_add_status_label("⌨️ 键盘侠", Color.ORANGE)
+		_add_status_badge(status_container, "⌨️ 键盘侠", Color.ORANGE, "键盘侠：本回合键盘伤害 ×3")
 	if has_reflect_shield:
-		_add_status_label("🛡️ 反伤", Color.PURPLE)
+		_add_status_badge(status_container, "🛡️ 反伤", Color.PURPLE, "反伤：反弹下一次受到的伤害")
 	if false_hope_stacks > 0:
-		_add_status_label("🍞 希望 x%d" % false_hope_stacks, Color.YELLOW)
+		_add_status_badge(status_container, "🍞 希望 x%d" % false_hope_stacks, Color.YELLOW, "希望：抵消一次致死伤害")
 	if enemy_fire_stacks > 0:
-		_add_status_label("🔥 敌火 x%d" % enemy_fire_stacks, Color.RED)
+		_add_status_badge(status_container, "🔥 敌火 x%d" % enemy_fire_stacks, Color.RED, "火大：部分火系/爆破效果会消耗火大造成额外伤害")
 	if enemy_poison_stacks > 0:
-		_add_status_label("🤢 中毒 x%d" % enemy_poison_stacks, Color.GREEN_YELLOW)
+		_add_status_badge(status_container, "🤢 中毒 x%d" % enemy_poison_stacks, Color.GREEN_YELLOW, "中毒：回合开始受到层数伤害，层数逐回合 -1")
 
-func _add_status_label(text: String, color: Color):
+func _add_status_badge(container: Control, text: String, color: Color, tooltip_text: String = ""):
+	var panel = PanelContainer.new()
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(color.r, color.g, color.b, 0.25)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.border_width_left = 1
+	style.border_color = color
+	panel.add_theme_stylebox_override("panel", style)
+	panel.tooltip_text = tooltip_text
+	
 	var label = Label.new()
 	label.text = text
 	label.add_theme_font_size_override("font_size", 14)
 	label.add_theme_color_override("font_color", color)
-	status_container.add_child(label)
+	label.tooltip_text = tooltip_text
+	panel.add_child(label)
+	container.add_child(panel)
