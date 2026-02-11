@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 GameManager="*res://Scripts/game_manager.gd"
 BgmManager="*res://Scripts/BGMManager.gd"
+SettingsManager="*res://Scripts/settings_manager.gd"
 
 [display]
 

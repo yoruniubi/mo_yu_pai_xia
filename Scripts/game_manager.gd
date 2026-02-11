@@ -21,6 +21,8 @@ func _ready():
 	if OS.get_name() in ["Windows", "macOS", "Linux"]:
 		# PC端默认窗口大小调整或支持全屏快捷键
 		DisplayServer.window_set_title("摸鱼牌侠 - PC版")
+	if Engine.has_singleton("SettingsManager"):
+		SettingsManager.apply_settings()
 
 func _input(event):
 	# PC端全屏快捷键 (F11)

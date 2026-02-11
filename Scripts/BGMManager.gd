@@ -2,10 +2,13 @@ extends AudioStreamPlayer
 
 # 定义淡入淡出的时长
 const FADE_DURATION = 0.3
+var target_volume_db: float = -6.0
 
 func _ready():
 	# 初始音量设为静音，防止启动时爆音
 	volume_db = -80
+	if Engine.has_singleton("SettingsManager"):
+		target_volume_db = SettingsManager.settings.get("bgm_volume_db", target_volume_db)
 
 # 播放音乐的函数（带淡入效果）
 func play_music(music_stream: AudioStream):
@@ -26,7 +29,7 @@ func play_music(music_stream: AudioStream):
 func fade_in():
 	var tween = create_tween()
 	# 从静音 (-80dB) 在指定时间内恢复到正常音量 (0dB)
-	tween.tween_property(self, "volume_db", -6, FADE_DURATION).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(self, "volume_db", target_volume_db, FADE_DURATION).set_trans(Tween.TRANS_SINE)
 
 # 淡出逻辑
 func fade_out():
@@ -36,3 +39,8 @@ func fade_out():
 	# 等动画播完后停止播放
 	await tween.finished
 	stop()
+
+func set_target_volume_db(db: float) -> void:
+	target_volume_db = db
+	if playing:
+		volume_db = target_volume_db

@@ -132,11 +132,11 @@ func _setup_back_button():
 	back_btn.focus_mode = Control.FOCUS_NONE
 	back_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
 	back_btn.add_theme_color_override("font_hover_color", Color.WHITE)
-	back_btn.add_theme_font_size_override("font_size", 16)
+	back_btn.add_theme_font_size_override("font_size", 24)
 	
 	# 放置在左上角
 	back_btn.position = Vector2(15, 15)
-	back_btn.custom_minimum_size = Vector2(130, 40)
+	back_btn.custom_minimum_size = Vector2(180, 55)
 	add_child(back_btn)
 	
 	back_btn.pressed.connect(func():

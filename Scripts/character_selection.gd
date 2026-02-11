@@ -41,7 +41,8 @@ func _setup_back_button():
 	back_btn.add_theme_stylebox_override("hover", style_hover)
 	back_btn.add_theme_stylebox_override("pressed", style_pressed)
 	back_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
-	back_btn.add_theme_font_size_override("font_size", 24)
+	back_btn.add_theme_font_size_override("font_size", 28)
+	back_btn.custom_minimum_size = Vector2(200, 60)
 	
 	# 位置设置 (左上角)
 	back_btn.position = Vector2(20, 20)

@@ -1,0 +1,159 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/settings_menu.gd" id="1_settings"]
+[ext_resource type="Texture2D" path="res://Assets/Images/background.png" id="2_bg"]
+
+[node name="SettingsMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_settings")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.960784, 0.941176, 0.862745, 1)
+
+[node name="Backdrop" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_bg")
+expand_mode = 1
+stretch_mode = 6
+modulate = Color(1, 1, 1, 0.18)
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -320.0
+offset_top = -420.0
+offset_right = 320.0
+offset_bottom = 420.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="RootVBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="Title" type="Label" parent="Panel/RootVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_font_sizes/font_size = 40
+text = "设置"
+horizontal_alignment = 1
+
+[node name="SettingsBox" type="VBoxContainer" parent="Panel/RootVBox"]
+custom_minimum_size = Vector2(560, 520)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+
+[node name="FullscreenRow" type="HBoxContainer" parent="Panel/RootVBox/SettingsBox"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="FullscreenLabel" type="Label" parent="Panel/RootVBox/SettingsBox/FullscreenRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "全屏模式"
+
+[node name="FullscreenCheck" type="CheckBox" parent="Panel/RootVBox/SettingsBox/FullscreenRow"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="MasterRow" type="HBoxContainer" parent="Panel/RootVBox/SettingsBox"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="MasterLabel" type="Label" parent="Panel/RootVBox/SettingsBox/MasterRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "主音量"
+
+[node name="MasterSlider" type="HSlider" parent="Panel/RootVBox/SettingsBox/MasterRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(280, 0)
+min_value = -40.0
+max_value = 0.0
+step = 1.0
+
+[node name="MasterValue" type="Label" parent="Panel/RootVBox/SettingsBox/MasterRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "-6 dB"
+
+[node name="BgmRow" type="HBoxContainer" parent="Panel/RootVBox/SettingsBox"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="BgmLabel" type="Label" parent="Panel/RootVBox/SettingsBox/BgmRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "BGM 音量"
+
+[node name="BgmSlider" type="HSlider" parent="Panel/RootVBox/SettingsBox/BgmRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(280, 0)
+min_value = -40.0
+max_value = 0.0
+step = 1.0
+
+[node name="BgmValue" type="Label" parent="Panel/RootVBox/SettingsBox/BgmRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "-6 dB"
+
+[node name="ResolutionRow" type="HBoxContainer" parent="Panel/RootVBox/SettingsBox"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="ResolutionLabel" type="Label" parent="Panel/RootVBox/SettingsBox/ResolutionRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "窗口分辨率"
+
+[node name="ResolutionOption" type="OptionButton" parent="Panel/RootVBox/SettingsBox/ResolutionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(240, 44)
+
+[node name="Footer" type="HBoxContainer" parent="Panel/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 30
+alignment = 1
+
+[node name="SaveButton" type="Button" parent="Panel/RootVBox/Footer"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(220, 70)
+theme_override_font_sizes/font_size = 28
+text = "保存设置"
+
+[node name="BackButton" type="Button" parent="Panel/RootVBox/Footer"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(220, 70)
+theme_override_font_sizes/font_size = 28
+text = "返回"

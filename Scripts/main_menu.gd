@@ -12,6 +12,9 @@ func _on_tutorialbutton_pressed() -> void:
 	GameManager.is_tutorial_mode = true
 	get_tree().change_scene_to_file("res://Scenes/character_selection.tscn")
 
+func _on_settingsbutton_pressed() -> void:
+	get_tree().change_scene_to_file("res://Scenes/settings_menu.tscn")
+
 func _on_exitbutton_pressed() -> void:
 	get_tree().quit()
 
@@ -62,7 +65,10 @@ func apply_css_to_buttons():
 				btn.icon = preload("res://Assets/Icons/start.png")
 			elif btn.name == "exitbutton":
 				btn.icon = preload("res://Assets/Icons/exit.png")
-			
+			elif btn.name == "settingsbutton":
+				btn.icon = preload("res://Assets/Icons/setting.png")
+			elif btn.name == "tutorialbutton":
+				btn.icon = preload("res://Assets/Icons/tutorial.png")
 			btn.expand_icon = true 
 			btn.add_theme_constant_override("icon_max_width", 50) 
 			btn.add_theme_constant_override("h_separation", 20) 

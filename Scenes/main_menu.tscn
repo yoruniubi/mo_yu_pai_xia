@@ -124,6 +124,11 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 55
 text = "新手教学"
 
+[node name="settingsbutton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 55
+text = "设置"
+
 [node name="exitbutton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 theme = SubResource("Theme_7vrkn")
@@ -133,4 +138,5 @@ text = "退出游戏"
 
 [connection signal="pressed" from="VBoxContainer/startbutton" to="." method="_on_startbutton_pressed"]
 [connection signal="pressed" from="VBoxContainer/tutorialbutton" to="." method="_on_tutorialbutton_pressed"]
+[connection signal="pressed" from="VBoxContainer/settingsbutton" to="." method="_on_settingsbutton_pressed"]
 [connection signal="pressed" from="VBoxContainer/exitbutton" to="." method="_on_exitbutton_pressed"]
