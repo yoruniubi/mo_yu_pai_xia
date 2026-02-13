@@ -118,6 +118,7 @@ func setup_button_style():
 	var style_normal = _create_style("#4a4a4a", 10, 4)
 	var style_hover = _create_style("#666666", 10, 6)
 	var style_pressed = _create_style("#222222", 10, 0)
+	var is_mobile = OS.has_feature("mobile")
 	
 	# 结束回合按钮样式
 	end_turn_button.add_theme_stylebox_override("normal", style_normal)
@@ -137,9 +138,11 @@ func setup_button_style():
 	back_to_menu_button.focus_mode = Control.FOCUS_NONE
 	back_to_menu_button.add_theme_color_override("font_color", Color("#4a4a4a"))
 	back_to_menu_button.add_theme_color_override("font_hover_color", Color.WHITE)
+	back_to_menu_button.add_theme_font_size_override("font_size", 22 if is_mobile else 20)
 	
 	back_to_menu_button.pressed.connect(_on_back_to_menu_pressed)
-	back_to_menu_button.position = Vector2(20, 110)
+	back_to_menu_button.position = Vector2(12, 12)
+	back_to_menu_button.custom_minimum_size = Vector2(200, 60) if is_mobile else Vector2(150, 44)
 	
 	# 重新开始按钮样式
 	restart_button.add_theme_stylebox_override("normal", style_normal)
@@ -918,16 +921,48 @@ func trigger_combo(combo_data):
 			for i in range(2): draw_card()
 
 func show_combo_directory():
-	var combo_text = "--- 摸鱼连招秘籍 ---\n\n"
-	for recipe in active_combos:
-		var data = active_combos[recipe]
-		combo_text += "【%s】 %s\n   └─ %s\n\n" % [recipe, data.name, data.effect]
-	
 	var dialog = AcceptDialog.new()
 	dialog.title = "连招一览"
-	dialog.dialog_text = combo_text
+	dialog.ok_button_text = "关闭"
+	dialog.dialog_text = ""
+	var is_mobile = OS.has_feature("mobile")
+	dialog.min_size = Vector2i(760, 560) if is_mobile else Vector2i(720, 520)
 	add_child(dialog)
-	dialog.popup_centered()
+
+	var container = MarginContainer.new()
+	container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	container.add_theme_constant_override("margin_left", 14)
+	container.add_theme_constant_override("margin_top", 12)
+	container.add_theme_constant_override("margin_right", 14)
+	container.add_theme_constant_override("margin_bottom", 48)
+	dialog.add_child(container)
+
+	var scroll = ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	container.add_child(scroll)
+
+	var text = RichTextLabel.new()
+	text.bbcode_enabled = true
+	text.scroll_active = false
+	text.fit_content = true
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.custom_minimum_size = Vector2(680, 0)
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var font_size = 28 if is_mobile else 24
+	text.add_theme_font_size_override("normal_font_size", font_size)
+	text.add_theme_font_size_override("bold_font_size", font_size + 2)
+	scroll.add_child(text)
+
+	var combo_text = "[b]--- 摸鱼连招秘籍 ---[/b]\n\n"
+	for recipe in active_combos:
+		var data = active_combos[recipe]
+		combo_text += "• [b]%s[/b]  %s\n    %s\n\n" % [recipe, data.name, data.effect]
+
+	text.text = combo_text
+	dialog.popup_centered_ratio(0.92 if is_mobile else 0.85)
 
 # --- 基础功能 (同步自 battle_scene) ---
 

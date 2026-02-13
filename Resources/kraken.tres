@@ -23,6 +23,7 @@ card_pool = [{
 "cost": 2,
 "description": "本回合闪避所有伤害。下回合抽牌+1",
 "emoji": "💨",
+"name":"喷射墨雾",
 "type": "buff_evasion",
 "value": 1
 }, {

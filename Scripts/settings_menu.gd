@@ -35,6 +35,10 @@ func _setup_style() -> void:
 	panel_style.border_width_right = 2
 	panel_style.border_width_bottom = 2
 	panel_style.border_color = Color("#e6d7b8")
+	panel_style.content_margin_left = 30
+	panel_style.content_margin_right = 30
+	panel_style.content_margin_top = 26
+	panel_style.content_margin_bottom = 26
 	$Panel.add_theme_stylebox_override("panel", panel_style)
 
 	_apply_button_style(save_button, Color("#8fb9aa"), Color("#6fa597"), Color("#4e8b7d"))
@@ -102,7 +106,7 @@ func _apply_checkbox_style(checkbox: CheckBox) -> void:
 
 func _apply_slider_style(slider: HSlider) -> void:
 	var grab = StyleBoxFlat.new()
-	grab.bg_color = Color("#2f2f30")
+	grab.bg_color = Color("#8fb9aa")
 	grab.set_corner_radius_all(8)
 	grab.content_margin_left = 6
 	grab.content_margin_right = 6
@@ -110,7 +114,7 @@ func _apply_slider_style(slider: HSlider) -> void:
 	grab.content_margin_bottom = 6
 
 	var track = StyleBoxFlat.new()
-	track.bg_color = Color("#2f2f30")
+	track.bg_color = Color("#e7dbc4")
 	track.set_corner_radius_all(6)
 	track.content_margin_left = 6
 	track.content_margin_right = 6
@@ -126,8 +130,8 @@ func _apply_label_style(root: Node) -> void:
 	for child in root.get_children():
 		if child is Label:
 			child.add_theme_color_override("font_color", Color("#3b3b3b"))
-			child.add_theme_color_override("font_outline_color", Color(1, 1, 1, 0.6))
-			child.add_theme_constant_override("outline_size", 2)
+			child.add_theme_color_override("font_outline_color", Color(1, 1, 1, 0.45))
+			child.add_theme_constant_override("outline_size", 1)
 		_apply_label_style(child)
 
 func _setup_signals() -> void:

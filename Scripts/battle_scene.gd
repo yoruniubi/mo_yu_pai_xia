@@ -119,6 +119,7 @@ func _setup_back_button():
 	var back_btn = Button.new()
 	back_btn.text = " ↩ 放弃挑战 "
 	back_btn.name = "AbandonButton"
+	var is_mobile = OS.has_feature("mobile")
 	
 	# 使用与主菜单/角色选择类似的风格
 	var style_normal = _create_style("#fdf5e6", 15, 2)
@@ -132,11 +133,11 @@ func _setup_back_button():
 	back_btn.focus_mode = Control.FOCUS_NONE
 	back_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
 	back_btn.add_theme_color_override("font_hover_color", Color.WHITE)
-	back_btn.add_theme_font_size_override("font_size", 24)
+	back_btn.add_theme_font_size_override("font_size", 22 if is_mobile else 20)
 	
 	# 放置在左上角
-	back_btn.position = Vector2(15, 15)
-	back_btn.custom_minimum_size = Vector2(180, 55)
+	back_btn.position = Vector2(12, 12)
+	back_btn.custom_minimum_size = Vector2(200, 60) if is_mobile else Vector2(150, 44)
 	add_child(back_btn)
 	
 	back_btn.pressed.connect(func():
@@ -1001,7 +1002,8 @@ func show_combo_directory():
 	dialog.title = "连招一览"
 	dialog.ok_button_text = "关闭"
 	dialog.dialog_text = ""
-	dialog.min_size = Vector2i(760, 520)
+	var is_mobile = OS.has_feature("mobile")
+	dialog.min_size = Vector2i(760, 560) if is_mobile else Vector2i(720, 520)
 	add_child(dialog)
 
 	var container = MarginContainer.new()
@@ -1015,6 +1017,8 @@ func show_combo_directory():
 	var scroll = ScrollContainer.new()
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
 	container.add_child(scroll)
 
 	var text = RichTextLabel.new()
@@ -1023,6 +1027,10 @@ func show_combo_directory():
 	text.fit_content = true
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.custom_minimum_size = Vector2(680, 0)
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var font_size = 28 if is_mobile else 24
+	text.add_theme_font_size_override("normal_font_size", font_size)
+	text.add_theme_font_size_override("bold_font_size", font_size + 2)
 	scroll.add_child(text)
 
 	var combo_text = "[b]--- 摸鱼连招秘籍 ---[/b]\n\n"
@@ -1049,7 +1057,7 @@ func show_combo_directory():
 				combo_text += "• [b]%s[/b]  %s\n    %s\n\n" % [recipe, data.name, data.effect]
 
 	text.text = combo_text
-	dialog.popup_centered_ratio(0.85)
+	dialog.popup_centered_ratio(0.92 if is_mobile else 0.85)
 
 func execute_card_effect(data: Dictionary):
 	var type = data.get("type", "")
