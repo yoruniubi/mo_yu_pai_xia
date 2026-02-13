@@ -98,7 +98,60 @@ func _apply_option_style(option: OptionButton) -> void:
 	option.add_theme_color_override("font_color", Color("#3b3b3b"))
 	option.add_theme_color_override("font_hover_color", Color("#3b3b3b"))
 	option.add_theme_color_override("font_pressed_color", Color("#3b3b3b"))
+	option.add_theme_color_override("font_color_pressed", Color("#3b3b3b"))
+	option.add_theme_color_override("font_color_hover_pressed", Color("#3b3b3b"))
+	option.add_theme_color_override("font_focus_color", Color("#3b3b3b"))
+	option.add_theme_color_override("font_disabled_color", Color("#3b3b3b"))
+	option.add_theme_color_override("font_outline_color", Color(1, 1, 1, 0.6))
+	option.add_theme_constant_override("outline_size", 1)
 	option.add_theme_font_size_override("font_size", 22)
+	_apply_option_popup_style(option)
+
+func _apply_option_popup_style(option: OptionButton) -> void:
+	var popup = option.get_popup()
+	popup.transparent_bg = true
+	popup.borderless = true
+	var popup_panel = StyleBoxFlat.new()
+	popup_panel.bg_color = Color("#fff8e8")
+	popup_panel.set_corner_radius_all(10)
+	popup_panel.border_width_left = 2
+	popup_panel.border_width_top = 2
+	popup_panel.border_width_right = 2
+	popup_panel.border_width_bottom = 2
+	popup_panel.border_color = Color("#e6d7b8")
+	popup.add_theme_stylebox_override("panel", popup_panel)
+	popup.add_theme_stylebox_override("panel_window", popup_panel)
+	popup.add_theme_stylebox_override("popup", popup_panel)
+	popup.add_theme_stylebox_override("focus", popup_panel)
+	popup.add_theme_stylebox_override("panel_focus", popup_panel)
+	popup.add_theme_stylebox_override("menu_panel", popup_panel)
+	popup.add_theme_stylebox_override("menu_bg", popup_panel)
+	popup.add_theme_stylebox_override("menu_panel_focus", popup_panel)
+
+	var popup_hover = StyleBoxFlat.new()
+	popup_hover.bg_color = Color("#f2e6cf")
+	popup_hover.set_corner_radius_all(8)
+	popup.add_theme_stylebox_override("hover", popup_hover)
+	popup.add_theme_stylebox_override("checked", popup_hover)
+	popup.add_theme_stylebox_override("checked_disabled", popup_hover)
+	popup.add_theme_stylebox_override("radio_checked", popup_hover)
+	popup.add_theme_stylebox_override("radio_checked_disabled", popup_hover)
+
+	popup.add_theme_color_override("font_color", Color("#3b3b3b"))
+	popup.add_theme_color_override("font_hover_color", Color("#3b3b3b"))
+	popup.add_theme_color_override("font_pressed_color", Color("#3b3b3b"))
+	popup.add_theme_color_override("font_disabled_color", Color("#3b3b3b"))
+	popup.add_theme_color_override("font_color_accel", Color("#3b3b3b"))
+	popup.add_theme_color_override("font_color_accel_hover", Color("#3b3b3b"))
+	popup.add_theme_color_override("font_color_separator", Color("#3b3b3b"))
+
+func _on_resolution_popup_opened() -> void:
+	resolution_option.add_theme_color_override("font_color", Color("#3b3b3b"))
+	resolution_option.add_theme_color_override("font_color_pressed", Color("#3b3b3b"))
+	resolution_option.add_theme_color_override("font_color_hover_pressed", Color("#3b3b3b"))
+
+func _on_resolution_popup_closed() -> void:
+	resolution_option.add_theme_color_override("font_color", Color("#3b3b3b"))
 
 func _apply_checkbox_style(checkbox: CheckBox) -> void:
 	checkbox.add_theme_color_override("font_color", Color("#3b3b3b"))
@@ -139,6 +192,8 @@ func _setup_signals() -> void:
 	master_slider.value_changed.connect(_on_master_volume_changed)
 	bgm_slider.value_changed.connect(_on_bgm_volume_changed)
 	resolution_option.item_selected.connect(_on_resolution_selected)
+	resolution_option.get_popup().about_to_popup.connect(_on_resolution_popup_opened)
+	resolution_option.get_popup().popup_hide.connect(_on_resolution_popup_closed)
 	save_button.pressed.connect(_on_save_pressed)
 	back_button.pressed.connect(_on_back_pressed)
 
