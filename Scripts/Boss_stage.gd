@@ -118,7 +118,7 @@ func setup_button_style():
 	var style_normal = _create_style("#4a4a4a", 10, 4)
 	var style_hover = _create_style("#666666", 10, 6)
 	var style_pressed = _create_style("#222222", 10, 0)
-	var is_mobile = OS.has_feature("mobile")
+	# var is_mobile = OS.has_feature("mobile")
 	
 	# 结束回合按钮样式
 	end_turn_button.add_theme_stylebox_override("normal", style_normal)
@@ -138,11 +138,11 @@ func setup_button_style():
 	back_to_menu_button.focus_mode = Control.FOCUS_NONE
 	back_to_menu_button.add_theme_color_override("font_color", Color("#4a4a4a"))
 	back_to_menu_button.add_theme_color_override("font_hover_color", Color.WHITE)
-	back_to_menu_button.add_theme_font_size_override("font_size", 22 if is_mobile else 20)
+	back_to_menu_button.add_theme_font_size_override("font_size", 20)
 	
 	back_to_menu_button.pressed.connect(_on_back_to_menu_pressed)
 	back_to_menu_button.position = Vector2(12, 12)
-	back_to_menu_button.custom_minimum_size = Vector2(200, 60) if is_mobile else Vector2(150, 44)
+	back_to_menu_button.custom_minimum_size = Vector2(150, 44)
 	
 	# 重新开始按钮样式
 	restart_button.add_theme_stylebox_override("normal", style_normal)
@@ -1312,7 +1312,7 @@ func update_status_display():
 		if enemy_poison_stacks > 0:
 			_add_status_badge(enemy_status_container, "🤢 中毒 x%d" % enemy_poison_stacks, Color.GREEN_YELLOW, "中毒：回合开始受到层数伤害，层数逐回合 -1")
 
-func _add_status_badge(container: Control, text: String, color: Color, tooltip_text: String = ""):
+func _add_status_badge(container: Control, text: String, color: Color, p_tooltip_text: String = ""):
 	var panel = PanelContainer.new()
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(color.r, color.g, color.b, 0.25)
@@ -1322,12 +1322,12 @@ func _add_status_badge(container: Control, text: String, color: Color, tooltip_t
 	style.border_width_left = 1
 	style.border_color = color
 	panel.add_theme_stylebox_override("panel", style)
-	panel.tooltip_text = tooltip_text
+	panel.tooltip_text = p_tooltip_text
 	
 	var label = Label.new()
 	label.text = text
 	label.add_theme_font_size_override("font_size", 16)
 	label.add_theme_color_override("font_color", color)
-	label.tooltip_text = tooltip_text
+	label.tooltip_text = p_tooltip_text
 	panel.add_child(label)
 	container.add_child(panel)

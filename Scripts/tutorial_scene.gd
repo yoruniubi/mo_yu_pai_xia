@@ -32,6 +32,7 @@ var floating_number_scene = preload("res://Scenes/floating_number.tscn")
 var hand_cards = []
 var current_sequence = []
 var draw_pile = []
+var discard_pile = []
 
 var hero_hp = 100
 var hero_shield = 0
@@ -58,17 +59,28 @@ const MAX_FAN_ANGLE = 30.0
 # --- 教学步骤 (增强描述版) ---
 var tutorial_step = 0
 var steps = [
-	{"text": "欢迎来到《摸鱼牌侠》实战演练！\n这是一场沉浸式的职场生存 Roguelike。", "target": null},
-	{"text": "基础信息 1/3：这是老板的【耐性值（HP）】。\n归零则代表战斗胜利，老板放弃挣扎。", "target": "enemy_hp"},
-	{"text": "基础信息 2/3：这是你的【压力值（HP）】。\n随加班/受击增长，满值则“过劳”，游戏结束。", "target": "hero_hp"},
-	{"text": "基础信息 3/3：【摸鱼力（AP）】。\n打出每张 Emoji 卡牌都需要消耗它，每回合自动回复。", "target": "ap"},
-	{"text": "这里是老板的【意图栏】。它显示老板下一步的动作。\n比如现在，他正准备复制你的操作！", "target": "intent"},
-	{"text": "卡牌系统 1/2：这是你的【弧形手牌】。\n拖动或点击即可打出，构成你的生存与输出。", "target": "hand"},
-	{"text": "卡牌系统 2/2：不同 Emoji 组合会触发强力连招。\n试试连续打出 3 张键盘 ⌨️ 触发“疯狂输出”！", "target": "combo"},
-	{"text": "状态说明：你的 Buff 会显示在这里（例如护盾/闪避）。\n需要时记得查看状态栏。", "target": "hero_status_buff"},
-	{"text": "状态说明：敌人的 Debuff 会显示在这里（例如中毒/虚弱）。\n持续伤害与削弱都能在此查看。", "target": "enemy_status"},
-	{"text": "最后是【结束回合】。当你摸不动鱼时，\n点击它让老板开始他的表演。", "target": "end_turn"},
-	{"text": "教学结束！现在，尝试击败这只鹦鹉，\n开启你的“离职之路”吧！", "target": null}
+	{"text": "欢迎来到 <摸鱼牌侠> 实战演练!
+这是一场沉浸式的职场生存 Roguelike.", "target": null},
+	{"text": "基础信息 1/3: 这是老板的 (耐性值 HP).
+归零则代表战斗胜利, 老板放弃挣扎.", "target": "enemy_hp"},
+	{"text": "基础信息 2/3: 这是你的 (压力值 HP).
+随加班/受击增长, 满值则 '过劳', 游戏结束.", "target": "hero_hp"},
+	{"text": "基础信息 3/3: (摸鱼力 AP).
+打出每张 Emoji 卡牌都需要消耗它, 每回合自动回复.", "target": "ap"},
+	{"text": "这里是老板的 (意图栏). 它显示老板下一步的动作.
+比如现在, 他正准备复制你的操作!", "target": "intent"},
+	{"text": "卡牌系统 1/2: 这是你的 (弧形手牌).
+拖动或点击即可打出, 构成你的生存与输出.", "target": "hand"},
+	{"text": "卡牌系统 2/2: 不同 Emoji 组合会触发强力连招.
+试试连续打出 3 张键盘 ⌨️ 触发 '疯狂输出'!", "target": "combo"},
+	{"text": "状态说明: 你的 Buff 会显示在这里 (例如护盾/闪避).
+需要时记得查看状态栏.", "target": "hero_status_buff"},
+	{"text": "状态说明: 敌人的 Debuff 会显示在这里 (例如中毒/虚弱).
+持续伤害与削弱都能在此查看.", "target": "enemy_status"},
+	{"text": "最后是 (结束回合). 当你摸不动鱼时,
+点击它让老板开始他的表演.", "target": "end_turn"},
+	{"text": "教学结束! 现在, 尝试击败这只鹦鹉,
+开启你的 '离职之路' 吧!", "target": null}
 ]
 
 func _ready():
@@ -86,6 +98,7 @@ func _ready():
 	_show_step(0)
 	
 	confirm_button.pressed.connect(_on_confirm_pressed)
+	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	if has_node("%SkipTutorialButton"):
 		%SkipTutorialButton.pressed.connect(_on_tutorial_finished)
 	%NextLevelButton.pressed.connect(_on_tutorial_finished)
@@ -101,19 +114,26 @@ func _setup_tutorial_battle():
 	hero_hp = 100
 	hero_hp_bar.max_value = 100
 	current_ap = 3
-	
-	draw_pile = [
-		GameManager.universal_cards[0].duplicate(), # ⌨️
-		GameManager.universal_cards[0].duplicate(), # ⌨️
-		GameManager.universal_cards[0].duplicate(), # ⌨️
-		GameManager.universal_cards[1].duplicate(), # 💧
-		GameManager.universal_cards[9].duplicate()  # 🛡️
-	]
+
+	# 教学关使用固定牌组，便于体验完整的回合循环
+	draw_pile = _build_tutorial_deck()
+	draw_pile.shuffle()
 	
 	for i in range(5):
 		draw_card()
 	
 	end_turn_button.disabled = true
+
+func _build_tutorial_deck() -> Array:
+	return [
+		GameManager.universal_cards[0].duplicate(), # ⌨️
+		GameManager.universal_cards[0].duplicate(), # ⌨️
+		GameManager.universal_cards[0].duplicate(), # ⌨️
+		GameManager.universal_cards[1].duplicate(), # 💧
+		GameManager.universal_cards[9].duplicate(), # 🛡️
+		GameManager.universal_cards[3].duplicate(), # ☕
+		GameManager.universal_cards[5].duplicate()  # 💤
+	]
 
 func _show_step(index):
 	tutorial_step = index
@@ -193,9 +213,9 @@ func _setup_tutorial_highlight_targets() -> void:
 func _setup_mask_material() -> void:
 	if not mask.material:
 		var shader = load("res://Assets/Shaders/tutorial_highlight_mask.gdshader")
-		var material = ShaderMaterial.new()
-		material.shader = shader
-		mask.material = material
+		var mask_material = ShaderMaterial.new()
+		mask_material.shader = shader
+		mask.material = mask_material
 	mask.show()
 
 func _apply_highlight(target_key):
@@ -206,24 +226,27 @@ func _apply_highlight(target_key):
 	if not target:
 		mask.hide()
 		return
-	var rect = _get_global_rect(target)
+	var rect = target.get_global_rect()
 	var pad = highlight_padding.get(target_key, Vector2(12, 8))
 	var pos = rect.position - pad
-	var size = rect.size + (pad * 2.0)
+	var cutout_size = rect.size + (pad * 2.0)
 	var mat = mask.material as ShaderMaterial
 	if mat:
 		mat.set_shader_parameter("cutout_pos", pos)
-		mat.set_shader_parameter("cutout_size", size)
+		mat.set_shader_parameter("cutout_size", cutout_size)
+		mat.set_shader_parameter("view_size", get_viewport_rect().size)
 		mat.set_shader_parameter("corner_radius", 12.0)
 		mat.set_shader_parameter("feather", 2.0)
 		mat.set_shader_parameter("overlay_color", Color(0, 0, 0, 0.6))
 	mask.show()
 
-func _get_global_rect(node: Control) -> Rect2:
-	return Rect2(node.global_position, node.size)
-
 func draw_card():
-	if draw_pile.is_empty(): return
+	if draw_pile.is_empty():
+		if discard_pile.is_empty():
+			return
+		draw_pile = discard_pile.duplicate()
+		discard_pile.clear()
+		draw_pile.shuffle()
 	var new_card = card_scene.instantiate()
 	new_card.card_data = draw_pile.pop_back()
 	hand_container.add_child(new_card)
@@ -263,6 +286,8 @@ func _on_card_played(card_node):
 		animation_manager.play_player_attack_anim(data.get("emoji", "⌨️"))
 	
 	execute_card_effect(data)
+	# 回合结束时会弃掉手牌，所以放进弃牌堆
+	discard_pile.append(data)
 	
 	var emoji = data.get("emoji", "")
 	if emoji != "":
@@ -373,18 +398,35 @@ func _trigger_tutorial_combo():
 		animation_manager.play_combo_flash()
 
 func _on_end_turn_pressed():
+	end_turn_button.disabled = true
 	current_ap = 3
 	hero_shield = 0
 	if %BossSprite.has_method("play_attack"):
 		%BossSprite.play_attack()
+	await get_tree().create_timer(0.4).timeout
 	_apply_damage_to_hero(5)
-	while hand_cards.size() < 5 and not draw_pile.is_empty():
+	
+	# 回合结束手牌进弃牌堆并清空
+	for card in hand_cards:
+		discard_pile.append(card.card_data)
+		card.queue_free()
+	hand_cards.clear()
+	
+	var draw_count = 5
+	for i in range(draw_count):
 		draw_card()
+	
+	current_sequence.clear()
+	_update_emoji_slots()
 	_update_ui_values()
+	_update_hand_layout()
+	end_turn_button.disabled = false
 
 func _apply_damage_to_hero(amount):
 	hero_hp -= amount
 	_spawn_floating_number(amount, false, hero_sprite.global_position)
+	if animation_manager.has_method("play_player_hit_anim"):
+		animation_manager.play_player_hit_anim()
 	if hero_hp <= 0:
 		game_over_layer.visible = true
 	_update_ui_values()

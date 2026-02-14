@@ -1,11 +1,13 @@
 # 玩家受击动画
 extends Node
 
-@onready var flash_layer = %FlashLayer
+@onready var flash_layer = get_node_or_null("%FlashLayer")
 @onready var boss_node = %BossSprite
 
 # --- 1. 玩家受击 (Player Hit) ---
 func play_player_hit_anim():
+	# 即使没有闪屏层，也要震屏
+	shake_screen(15.0, 0.3)
 	if not flash_layer: return
 	# A. 视野红闪
 	var t = create_tween()

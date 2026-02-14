@@ -119,7 +119,7 @@ func _setup_back_button():
 	var back_btn = Button.new()
 	back_btn.text = " ↩ 放弃挑战 "
 	back_btn.name = "AbandonButton"
-	var is_mobile = OS.has_feature("mobile")
+	# var is_mobile = OS.has_feature("mobile")
 	
 	# 使用与主菜单/角色选择类似的风格
 	var style_normal = _create_style("#fdf5e6", 15, 2)
@@ -133,11 +133,11 @@ func _setup_back_button():
 	back_btn.focus_mode = Control.FOCUS_NONE
 	back_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
 	back_btn.add_theme_color_override("font_hover_color", Color.WHITE)
-	back_btn.add_theme_font_size_override("font_size", 22 if is_mobile else 20)
+	back_btn.add_theme_font_size_override("font_size", 20)
 	
 	# 放置在左上角
 	back_btn.position = Vector2(12, 12)
-	back_btn.custom_minimum_size = Vector2(200, 60) if is_mobile else Vector2(150, 44)
+	back_btn.custom_minimum_size = Vector2(150, 44)
 	add_child(back_btn)
 	
 	back_btn.pressed.connect(func():
@@ -146,6 +146,10 @@ func _setup_back_button():
 		dialog.dialog_text = "当前的离职进度将会丢失，确定要返回主菜单吗？"
 		dialog.ok_button_text = "确定"
 		dialog.cancel_button_text = "点错了"
+		# 放大弹窗文字与按钮字体，提升可读性
+		dialog.get_label().add_theme_font_size_override("font_size", 24)
+		dialog.get_ok_button().add_theme_font_size_override("font_size", 22)
+		dialog.get_cancel_button().add_theme_font_size_override("font_size", 22)
 		add_child(dialog)
 		dialog.popup_centered()
 		dialog.confirmed.connect(func():
@@ -784,7 +788,7 @@ func update_status_display():
 		if enemy_poison_stacks > 0:
 			_add_status_badge(enemy_status_container, "🤢 中毒 x%d" % enemy_poison_stacks, Color.GREEN_YELLOW, "中毒：回合开始受到层数伤害，层数逐回合 -1")
 
-func _add_status_badge(container: Control, text: String, color: Color, tooltip_text: String = ""):
+func _add_status_badge(container: Control, text: String, color: Color, p_tooltip_text: String = ""):
 	var panel = PanelContainer.new()
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(color.r, color.g, color.b, 0.25)
@@ -794,13 +798,13 @@ func _add_status_badge(container: Control, text: String, color: Color, tooltip_t
 	style.border_width_left = 1
 	style.border_color = color
 	panel.add_theme_stylebox_override("panel", style)
-	panel.tooltip_text = tooltip_text
+	panel.tooltip_text = p_tooltip_text
 	
 	var label = Label.new()
 	label.text = text
 	label.add_theme_font_size_override("font_size", 16)
 	label.add_theme_color_override("font_color", color)
-	label.tooltip_text = tooltip_text
+	label.tooltip_text = p_tooltip_text
 	panel.add_child(label)
 	container.add_child(panel)
 

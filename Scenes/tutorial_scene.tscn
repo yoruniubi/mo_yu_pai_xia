@@ -371,6 +371,18 @@ text = "重新教学"
 unique_name_in_owner = true
 script = ExtResource("4_player_anim")
 
+[node name="Overlays" type="CanvasLayer" parent="."]
+
+[node name="FlashLayer" type="ColorRect" parent="Overlays"]
+unique_name_in_owner = true
+modulate = Color(1, 0, 0, 0)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
 [node name="TutorialLayer" type="CanvasLayer" parent="."]
 layer = 10
 
