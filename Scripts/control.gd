@@ -32,6 +32,8 @@ func update_ui():
 # --- 核心交互逻辑 ---
 
 func _on_mouse_entered():
+	if not is_inside_tree():
+		return
 	print("鼠标进来了！")
 	# 1. 提高显示优先级
 	z_index = 10
@@ -54,6 +56,8 @@ func _on_mouse_entered():
 	tween.tween_property(visual, "modulate", Color(1.2, 1.2, 1.2), ANIM_SPEED)
 
 func _on_mouse_exited():
+	if not is_inside_tree():
+		return
 	# 1. 恢复显示优先级
 	z_index = 0
 	
@@ -69,6 +73,8 @@ func _on_mouse_exited():
 
 func _gui_input(event):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		if not is_inside_tree():
+			return
 		# 点击时做一个“按下”的反震效果
 		var tween = create_tween()
 		tween.tween_property(visual, "scale", Vector2(0.9, 0.9), 0.05)
@@ -78,4 +84,6 @@ func _gui_input(event):
 		get_tree().create_timer(0.1).timeout.connect(select_this_character)
 
 func select_this_character():
+	if not is_inside_tree():
+		return
 	GameManager.start_game(character_data)

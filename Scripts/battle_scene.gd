@@ -55,6 +55,22 @@ var next_attack_multiplier = 1.0 # 扩音器效果
 var cost_reduction_active = false # 团建干杯效果
 var save_hand_this_turn = false # 存档效果
 var ap_multiplier_next_turn = 1.0 # 全线崩溃效果
+var compliance_rule: Dictionary = {}
+var compliance_violation_this_turn = false
+var raccoon_steal_ready = false
+var poison_heal_inverted = false
+var hydra_heads = 3
+var hydra_head_hp = 60
+var hydra_head_damage_this_turn = 0
+var spider_shuffle_used = false
+var hedgehog_turns_left = 3
+var hedgehog_combo_met = false
+var monkey_locked_slot = -1
+var monkey_locked_group = ""
+var enemy_damage_bonus = 0
+var player_damage_multiplier = 1.0
+var battle_ap_bonus_applied = false
+var first_card_free_used = false
 
 # 当前激活的连招池
 var active_combos = {}
@@ -94,6 +110,17 @@ func _ready():
 	enemy_hp_bar.value = enemy_hp
 	intent_label.text = enemy.intent
 	%BossSprite.texture = load(enemy.image)
+	if "九头蛇" in enemy.name:
+		hydra_heads = 3
+		hydra_head_hp = int(ceil(enemy.hp / 3.0))
+	if "刺猬" in enemy.name:
+		hedgehog_init()
+	
+	# 4.1 事件影响
+	enemy_damage_bonus = GameManager.next_battle_enemy_damage_bonus
+	player_damage_multiplier = GameManager.next_battle_damage_multiplier
+	GameManager.next_battle_enemy_damage_bonus = 0
+	GameManager.next_battle_damage_multiplier = 1.0
 	
 	# 初始 AP
 	current_ap = GameManager.max_ap
@@ -111,6 +138,24 @@ func _ready():
 	# 7. 初始抽牌
 	for i in range(5):
 		draw_card()
+	
+	if GameManager.start_battle_discard_random_hand and hand_cards.size() > 0:
+		var idx = randi() % hand_cards.size()
+		var c = hand_cards[idx]
+		hand_cards.remove_at(idx)
+		c.queue_free()
+		update_hand_layout()
+		GameManager.start_battle_discard_random_hand = false
+	
+	if GameManager.start_battle_burst_damage > 0:
+		apply_damage_to_enemy(GameManager.start_battle_burst_damage)
+		GameManager.start_battle_burst_damage = 0
+	
+	if GameManager.skip_next_battle:
+		GameManager.skip_next_battle = false
+		GameManager.skip_rewards_battles = max(1, GameManager.skip_rewards_battles)
+		show_victory()
+		return
 	
 	# 8. 添加返回按钮
 	_setup_back_button()
@@ -210,6 +255,58 @@ func update_ui_values():
 		_style_resignation_bar(bar)
 	# 同步到全局
 	GameManager.player_hp = hero_hp
+
+func _roll_compliance_rule():
+	var rule_type = randi() % 2
+	if rule_type == 0:
+		var parity = "even" if (randi() % 2 == 0) else "odd"
+		compliance_rule = {"type": "ap_parity", "value": parity}
+	else:
+		compliance_rule = {"type": "emoji_colors", "value": 2}
+	compliance_violation_this_turn = false
+
+func _check_compliance_violation(total_ap_used: int):
+	if compliance_rule.is_empty():
+		return
+	if compliance_rule.type == "ap_parity":
+		var is_even = total_ap_used % 2 == 0
+		if (compliance_rule.value == "even" and not is_even) or (compliance_rule.value == "odd" and is_even):
+			compliance_violation_this_turn = true
+	elif compliance_rule.type == "emoji_colors":
+		var colors = {}
+		for card_data in cards_played_this_turn:
+			var emoji = card_data.get("emoji", "")
+			if emoji == "":
+				continue
+			var color = _get_emoji_color_group(emoji)
+			colors[color] = true
+		if colors.keys().size() > compliance_rule.value:
+			compliance_violation_this_turn = true
+
+func _get_emoji_color_group(emoji: String) -> String:
+	if emoji in ["🔥", "💣", "🧨", "🌋"]:
+		return "red"
+	if emoji in ["💧", "🌊", "🐙", "💨", "🌀"]:
+		return "blue"
+	if emoji in ["📊", "📈", "📉", "📑", "📁", "📅", "📧", "📄"]:
+		return "yellow"
+	return "white"
+
+func _get_monkey_lock_requirement() -> Dictionary:
+	var groups = [
+		{"group": "red", "label": "🔥"},
+		{"group": "blue", "label": "💧"},
+		{"group": "yellow", "label": "📊"},
+		{"group": "white", "label": "⚪"}
+	]
+	return groups[randi() % groups.size()]
+
+func _matches_lock_requirement(emoji: String) -> bool:
+	return _get_emoji_color_group(emoji) == monkey_locked_group
+
+func hedgehog_init():
+	hedgehog_turns_left = 3
+	hedgehog_combo_met = false
 
 func _ensure_hp_label(bar: ProgressBar, label_name: String, value: int, color: Color) -> void:
 	var label = bar.get_node_or_null(label_name)
@@ -409,16 +506,25 @@ func enemy_turn():
 		else:
 			apply_damage_to_hero(15)
 	elif "刺猬" in enemy_name:
-		print("刺猬发动连击！")
-		for i in range(3):
-			apply_damage_to_hero(8)
-			await get_tree().create_timer(0.2).timeout
+		if hedgehog_turns_left <= 1:
+			if not hedgehog_combo_met:
+				spawn_floating_number("DEADLINE!", true, %BossSprite.global_position + Vector2(0, -120), Color.RED)
+				apply_pure_damage_to_hero(35)
+				hedgehog_init()
+			else:
+				hedgehog_init()
+		else:
+			hedgehog_turns_left -= 1
+			print("刺猬发动连击！")
+			for i in range(3):
+				apply_damage_to_hero(8 + enemy_damage_bonus)
+				await get_tree().create_timer(0.2).timeout
 	elif "树懒" in enemy_name:
-		apply_damage_to_hero(18)
+		apply_damage_to_hero(18 + enemy_damage_bonus)
 		print("树懒塞入了垃圾卡...")
 		inject_junk_card("meeting")
 	elif "监控猿" in enemy_name:
-		apply_damage_to_hero(25)
+		apply_damage_to_hero(25 + enemy_damage_bonus)
 		# 锁定逻辑简化：随机弃掉一张手牌
 		if hand_cards.size() > 0:
 			var idx = randi() % hand_cards.size()
@@ -428,16 +534,16 @@ func enemy_turn():
 			print("监控猿锁定了你的一张牌！")
 	elif "蜘蛛" in enemy_name:
 		print("画饼蜘蛛发动了【虚假目标】！")
-		apply_damage_to_hero(30)
+		apply_damage_to_hero(30 + enemy_damage_bonus)
 		inject_junk_card("goal")
 	elif "CEO" in enemy_name:
 		print("CEO 释放了【KPI 考核】！")
-		apply_damage_to_hero(45)
+		apply_damage_to_hero(45 + enemy_damage_bonus)
 		inject_junk_card("kpi")
 		# 额外效果：减少玩家 1 点 AP，持续一回合
 		next_turn_extra_ap -= 1
 	else:
-		var damage = 10 + (GameManager.current_level * 3)
+		var damage = 10 + (GameManager.current_level * 3) + enemy_damage_bonus
 		# 应用攻击削减
 		damage = max(0, damage - enemy_atk_reduction)
 		enemy_atk_reduction = 0 # 重置
@@ -469,18 +575,40 @@ func show_game_over():
 
 func start_player_turn():
 	end_turn_button.disabled = false
-	current_ap = int((GameManager.max_ap + next_turn_extra_ap) * ap_multiplier_next_turn)
+	var base_ap = GameManager.max_ap
+	if not battle_ap_bonus_applied:
+		base_ap += GameManager.next_battle_ap_bonus
+		battle_ap_bonus_applied = true
+		GameManager.next_battle_ap_bonus = 0
+	current_ap = int((base_ap + next_turn_extra_ap) * ap_multiplier_next_turn)
 	next_turn_extra_ap = 0
 	ap_multiplier_next_turn = 1.0
 	poop_played_this_turn = false
 	cards_played_this_turn.clear()
 	cost_reduction_active = false
+	compliance_violation_this_turn = false
+	raccoon_steal_ready = false
+	hydra_head_damage_this_turn = 0
+	spider_shuffle_used = false
+	first_card_free_used = false
 	
 	# 回合开始重置护盾
 	hero_shield = 0
 	
 	# 更新敌人意图
 	_update_enemy_intent()
+	var enemy_name = enemy_name_label.text
+	if "审计" in enemy_name:
+		_roll_compliance_rule()
+		_update_enemy_intent()
+	if "毒蛇" in enemy_name:
+		poison_heal_inverted = true
+	else:
+		poison_heal_inverted = false
+	if "监控猿" in enemy_name:
+		var lock = _get_monkey_lock_requirement()
+		monkey_locked_group = lock.group
+		monkey_locked_slot = randi() % 3
 	
 	# 处理多回合状态
 	if has_meta("evasion_turns"):
@@ -500,6 +628,11 @@ func start_player_turn():
 	current_sequence.clear()
 	update_emoji_slots()
 	enemy_vulnerability = 0 # 重置敌人易伤状态
+	
+	if GameManager.ap_drain_per_turn > 0:
+		current_ap = max(0, current_ap - GameManager.ap_drain_per_turn)
+	if GameManager.hp_drain_per_turn > 0:
+		apply_damage_to_hero(GameManager.hp_drain_per_turn)
 	
 	if is_waiting_next_turn:
 		is_waiting_next_turn = false
@@ -580,6 +713,16 @@ func apply_damage_to_hero(amount: int):
 	t.tween_property(hero_sprite, "modulate", Color.RED, 0.1)
 	t.tween_property(hero_sprite, "modulate", Color.WHITE, 0.1)
 	
+	update_ui_values()
+	update_status_display()
+
+func apply_pure_damage_to_hero(amount: int):
+	if is_evading:
+		spawn_floating_number("MISS", false, hero_sprite.global_position + Vector2(0, -50), Color.CYAN)
+		return
+	hero_hp -= amount
+	hero_hp = max(0, hero_hp)
+	spawn_floating_number(amount, true, hero_sprite.global_position + Vector2(0, -50), Color.RED)
 	update_ui_values()
 	update_status_display()
 
@@ -667,6 +810,10 @@ func _on_card_played(card_node):
 	if has_kpi and emoji != "" and _is_emoji_part_of_any_combo(emoji):
 		cost += 1
 	
+	if GameManager.first_card_free and not first_card_free_used:
+		cost = 0
+		first_card_free_used = true
+	
 	if current_ap < cost:
 		var t = create_tween()
 		t.tween_property(card_node, "position:x", card_node.position.x + 10, 0.05)
@@ -692,6 +839,9 @@ func _on_card_played(card_node):
 	execute_card_effect(data)
 	last_player_card_data = data
 	cards_played_this_turn.append(data)
+
+	if "审计" in enemy_name_label.text:
+		_check_compliance_violation(GameManager.max_ap - current_ap)
 	
 	# 垃圾卡也会进入弃牌堆以持续污染牌组
 	discard_pile.append(data)
@@ -700,6 +850,14 @@ func _on_card_played(card_node):
 		current_sequence.append(emoji)
 		update_emoji_slots()
 		check_combos()
+		if "浣熊" in enemy_name_label.text:
+			if current_sequence.size() >= 2 and not raccoon_steal_ready:
+				raccoon_steal_ready = true
+				if randf() < 0.5:
+					var idx = randi() % current_sequence.size()
+					current_sequence.remove_at(idx)
+					update_emoji_slots()
+					spawn_floating_number("偷走了!", false, %BossSprite.global_position + Vector2(0, -120), Color.ORANGE)
 	
 	hand_cards.erase(card_node)
 	card_node.queue_free()
@@ -822,6 +980,21 @@ func check_combos():
 	var seq_counts = {}
 	for e in current_sequence:
 		seq_counts[e] = seq_counts.get(e, 0) + 1
+	
+	if "监控猿" in enemy_name_label.text and monkey_locked_slot >= 0:
+		if current_sequence.size() > monkey_locked_slot:
+			var locked_emoji = current_sequence[monkey_locked_slot]
+			if not _matches_lock_requirement(locked_emoji):
+				spawn_floating_number("锁定失败", false, %BossSprite.global_position + Vector2(0, -120), Color.ORANGE)
+				return
+
+	if "蜘蛛" in enemy_name_label.text and not spider_shuffle_used and current_sequence.size() >= 2:
+		if randf() < 0.5:
+			current_sequence.shuffle()
+			spider_shuffle_used = true
+			update_emoji_slots()
+			spawn_floating_number("乱序!", false, %BossSprite.global_position + Vector2(0, -120), Color.ORANGE_RED)
+			return
 	
 	for recipe_key in active_combos:
 		var combo = active_combos[recipe_key]
@@ -1069,7 +1242,7 @@ func execute_card_effect(data: Dictionary):
 	var emoji = data.get("emoji", "")
 	match type:
 		"attack":
-			var dmg = value
+			var dmg = value + GameManager.attack_bonus_flat
 			if emoji == "⌨️" and keyboard_buff_active:
 				dmg *= 3
 			dmg *= next_attack_multiplier
@@ -1089,7 +1262,7 @@ func execute_card_effect(data: Dictionary):
 			is_evading = true
 			draw_card()
 		"attack_draw":
-			apply_damage_to_enemy(value)
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
 			draw_card()
 		"buff_ap", "temp_ap":
 			current_ap += value
@@ -1111,10 +1284,10 @@ func execute_card_effect(data: Dictionary):
 			apply_heal_to_hero(value)
 			apply_damage_to_enemy(value)
 		"attack_fire":
-			apply_damage_to_enemy(value)
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
 			enemy_fire_stacks += 1
 		"attack_bomb":
-			var total_dmg = value + (enemy_fire_stacks * 5)
+			var total_dmg = value + (enemy_fire_stacks * 5) + GameManager.attack_bonus_flat
 			apply_damage_to_enemy(total_dmg)
 		"buff_fire":
 			if enemy_fire_stacks == 0:
@@ -1124,7 +1297,7 @@ func execute_card_effect(data: Dictionary):
 			if data.get("name") == "余烬":
 				current_ap += 1
 		"attack_seed":
-			apply_damage_to_enemy(value)
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
 			apply_shield_to_hero(3)
 			if GameManager.selected_hero:
 				var fire_cards = GameManager.selected_hero.card_pool.filter(func(c): return c.get("emoji") == "🔥")
@@ -1144,7 +1317,7 @@ func execute_card_effect(data: Dictionary):
 		"debuff_atk":
 			enemy_atk_reduction += value
 		"attack_steal":
-			apply_damage_to_enemy(value)
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
 			apply_shield_to_hero(value)
 		"record_data":
 			# 保底记录 5 点，防止空转
@@ -1159,13 +1332,13 @@ func execute_card_effect(data: Dictionary):
 		"junk_goal":
 			current_ap -= 1
 		"attack_draw_conditional":
-			apply_damage_to_enemy(value)
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
 			var c = draw_card()
 			if c and c.card_data.get("emoji") == "📊":
 				await get_tree().create_timer(0.2).timeout
 				draw_card()
 		"attack_draw_record":
-			apply_damage_to_enemy(value)
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
 			for i in range(3): draw_card()
 			recorded_data_value = last_damage_dealt
 			current_ap += 1
@@ -1200,7 +1373,7 @@ func execute_card_effect(data: Dictionary):
 			has_reflect_shield = true
 			apply_shield_to_hero(5)
 		"attack_draw_specific":
-			apply_damage_to_enemy(value)
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
 			var target = data.get("target_emoji", "")
 			var found = false
 			for i in range(draw_pile.size()):
@@ -1244,7 +1417,7 @@ func execute_card_effect(data: Dictionary):
 			apply_heal_to_hero(value)
 			draw_card()
 		"attack_conditional_keyboard":
-			var dmg = value
+			var dmg = value + GameManager.attack_bonus_flat
 			var keyboard_played = false
 			for c in cards_played_this_turn:
 				if c.get("emoji") == "⌨️":
@@ -1285,7 +1458,7 @@ func execute_card_effect(data: Dictionary):
 				var pool = GameManager.selected_hero.card_pool
 				draw_card(pool[randi() % pool.size()])
 		"attack_draw_email":
-			apply_damage_to_enemy(value)
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
 			var c = draw_card()
 			if c and c.card_data.get("emoji") == "⌨️":
 				apply_damage_to_enemy(10)
@@ -1309,7 +1482,7 @@ func execute_card_effect(data: Dictionary):
 			save_hand_this_turn = true
 			spawn_floating_number("SAVED", false, hero_sprite.global_position + Vector2(0, -100), Color.GREEN)
 		"pull_plug":
-			apply_damage_to_enemy(value)
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
 			_on_end_turn_pressed()
 		"clean_status":
 			# 移除可能的负面状态
@@ -1326,7 +1499,7 @@ func execute_card_effect(data: Dictionary):
 			apply_damage_to_enemy(dmg)
 			update_ui_values()
 		"attack_fire_burst":
-			apply_damage_to_enemy(value)
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
 			enemy_fire_stacks += 2
 		"generate_fire_card":
 			if GameManager.selected_hero:
@@ -1342,7 +1515,7 @@ func execute_card_effect(data: Dictionary):
 			draw_card()
 			current_ap += value
 		"attack_debuff_atk_half":
-			apply_damage_to_enemy(value)
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
 			# 简化：降低老板下一击伤害
 			enemy_atk_reduction += 15 
 		"heal_vulnerability":
@@ -1352,13 +1525,23 @@ func execute_card_effect(data: Dictionary):
 func apply_damage_to_enemy(amount: int):
 	if is_battle_over: return
 	var final_dmg = amount
+	if final_dmg > 0:
+		final_dmg = int(final_dmg * player_damage_multiplier)
 	if enemy_vulnerability > 0:
 		final_dmg += enemy_vulnerability
 	if self.has_meta("perm_vulnerability"):
 		final_dmg += get_meta("perm_vulnerability")
+
+	if "审计" in enemy_name_label.text and compliance_violation_this_turn and final_dmg > 0:
+		enemy_hp = min(enemy_hp + final_dmg, enemy_hp_bar.max_value)
+		spawn_floating_number("退回", false, %BossSprite.global_position + Vector2(0, -120), Color.GREEN)
+		update_ui_values()
+		return
 		
 	enemy_hp -= final_dmg
 	enemy_hp = max(0, enemy_hp)
+	if "九头蛇" in enemy_name_label.text and final_dmg > 0:
+		hydra_head_damage_this_turn += final_dmg
 	last_damage_dealt = final_dmg
 	if %BossSprite.has_method("play_hit"):
 		%BossSprite.play_hit()
@@ -1371,6 +1554,10 @@ func show_victory():
 	is_battle_over = true
 	end_turn_button.disabled = true
 	level_clear_label.text = "第 %d 关 已突破" % GameManager.current_level
+	if GameManager.skip_rewards_battles > 0:
+		GameManager.skip_rewards_battles -= 1
+		victory_layer.visible = true
+		return
 	get_tree().create_timer(0.5).timeout.connect(show_reward_selection)
 
 func show_reward_selection():
@@ -1453,9 +1640,13 @@ func show_reward_selection():
 		)
 
 func apply_heal_to_hero(amount: int):
-	hero_hp += amount
+	if poison_heal_inverted:
+		apply_damage_to_hero(amount)
+		return
+	var final_heal = int(amount * GameManager.heal_multiplier)
+	hero_hp += final_heal
 	hero_hp = min(GameManager.max_player_hp, hero_hp)
-	spawn_floating_number(amount, false, hero_sprite.global_position + Vector2(0, -50), Color.GREEN)
+	spawn_floating_number(final_heal, false, hero_sprite.global_position + Vector2(0, -50), Color.GREEN)
 	update_ui_values()
 	update_status_display()
 
@@ -1474,14 +1665,34 @@ func _update_enemy_intent():
 	if "鹦鹉" in enemy.name:
 		intent_label.text = "意图: 📝 复制"
 	elif "刺猬" in enemy.name:
-		intent_label.text = "意图: ⚔️ 8 x 3 (24)"
+		intent_label.text = "意图: ⏰ %d 回合内⌨️连招" % hedgehog_turns_left
+	elif "浣熊" in enemy.name:
+		intent_label.text = "意图: 🦝 偷序列"
+	elif "审计" in enemy.name:
+		if compliance_rule.is_empty():
+			intent_label.text = "意图: 🔍 合规检查"
+		elif compliance_rule.type == "ap_parity":
+			intent_label.text = "意图: 🔍 AP 必须为 %s" % ("偶数" if compliance_rule.value == "even" else "奇数")
+		else:
+			intent_label.text = "意图: 🔍 Emoji 颜色 ≤ %d" % compliance_rule.value
+	elif "毒蛇" in enemy.name:
+		intent_label.text = "意图: 🐍 反转回血"
 	elif "树懒" in enemy.name:
 		intent_label.text = "意图: 💤 18 + 📄"
 	elif "监控猿" in enemy.name:
-		intent_label.text = "意图: 👁️ 25 + 🔒"
+		var slot_text = "第%d格" % (monkey_locked_slot + 1) if monkey_locked_slot >= 0 else "随机格"
+		var req_text = "?"
+		match monkey_locked_group:
+			"red": req_text = "🔥"
+			"blue": req_text = "💧"
+			"yellow": req_text = "📊"
+			"white": req_text = "⚪"
+		intent_label.text = "意图: 👁️ %s=%s" % [slot_text, req_text]
 	elif "蜘蛛" in enemy.name:
 		intent_label.text = "意图: 🕸️ 30 + 🕸️"
 		intent_label.add_theme_color_override("font_color", Color.ORANGE_RED)
+	elif "九头蛇" in enemy.name:
+		intent_label.text = "意图: 🐲 分裂回血"
 	elif "CEO" in enemy.name:
 		intent_label.text = "意图: KPI 45 + 📉"
 		intent_label.add_theme_color_override("font_color", Color.RED)

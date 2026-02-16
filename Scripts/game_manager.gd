@@ -14,6 +14,21 @@ var current_level: int = 1
 var max_levels: int = 10
 var evolution_path: String = "" 
 var max_ap: int = 3 # 全局最大 AP
+var pending_event_id: String = ""
+var pending_random_event_id: String = ""
+var last_battle_level: int = 0
+var next_battle_ap_bonus: int = 0
+var next_battle_damage_multiplier: float = 1.0
+var next_battle_enemy_damage_bonus: int = 0
+var start_battle_burst_damage: int = 0
+var start_battle_discard_random_hand: bool = false
+var skip_rewards_battles: int = 0
+var first_card_free: bool = false
+var heal_multiplier: float = 1.0
+var attack_bonus_flat: int = 0
+var ap_drain_per_turn: int = 0
+var hp_drain_per_turn: int = 0
+var skip_next_battle: bool = false
 
 func _ready():
 	# 自动适配屏幕拉伸
@@ -44,6 +59,21 @@ func reset_run():
 	current_level = 1
 	max_ap = 3
 	evolution_path = ""
+	pending_event_id = ""
+	pending_random_event_id = ""
+	last_battle_level = 0
+	next_battle_ap_bonus = 0
+	next_battle_damage_multiplier = 1.0
+	next_battle_enemy_damage_bonus = 0
+	start_battle_burst_damage = 0
+	start_battle_discard_random_hand = false
+	skip_rewards_battles = 0
+	first_card_free = false
+	heal_multiplier = 1.0
+	attack_bonus_flat = 0
+	ap_drain_per_turn = 0
+	hp_drain_per_turn = 0
+	skip_next_battle = false
 	initialize_deck()
 
 func initialize_deck():
@@ -101,23 +131,26 @@ func load_current_level_scene():
 	if is_tutorial_mode and current_level == 1:
 		scene_path = "res://Scenes/tutorial_scene.tscn"
 	else:
-		match current_level:
-			3, 5, 7, 9:
-				scene_path = "res://Scenes/event_scene.tscn"
-			10:
-				scene_path = "res://Scenes/boss_stage.tscn"
-			_:
-				scene_path = "res://Scenes/battle_scene.tscn"
+		if pending_event_id != "":
+			scene_path = "res://Scenes/event_scene.tscn"
+		elif pending_random_event_id != "":
+			scene_path = "res://Scenes/event_scene.tscn"
+		elif current_level == 10:
+			scene_path = "res://Scenes/boss_stage.tscn"
+		else:
+			scene_path = "res://Scenes/battle_scene.tscn"
 			
 	var tree = Engine.get_main_loop() as SceneTree
 	if tree:
 		tree.change_scene_to_file(scene_path)
 
 func advance_level():
+	var last_level = current_level
 	current_level += 1
-	# 每 3 关自动提升一点最大 AP，作为基本成长（或者在 EventScene 中选择）
-	if current_level == 4 or current_level == 8:
-		max_ap += 1
+	if _should_trigger_event_after_level(last_level):
+		pending_event_id = _get_event_id_after_level(last_level)
+	elif _should_trigger_random_event_after_level(last_level):
+		pending_random_event_id = _get_random_event_id()
 		
 	if current_level > max_levels:
 		current_level = 1
@@ -126,6 +159,41 @@ func advance_level():
 			tree.change_scene_to_file("res://Scenes/main_menu.tscn")
 	else:
 		load_current_level_scene()
+
+func finish_event_and_continue():
+	pending_event_id = ""
+	pending_random_event_id = ""
+	load_current_level_scene()
+
+func _should_trigger_random_event_after_level(level: int) -> bool:
+	# 固定事件关后不触发随机事件
+	if _get_event_id_after_level(level) != "":
+		return false
+	# 仅在完成战斗关卡后触发
+	return level >= 1 and level <= 9
+
+func _get_random_event_id() -> String:
+	var keys = random_events.keys()
+	if keys.size() == 0:
+		return ""
+	keys.shuffle()
+	return keys[0]
+
+func _should_trigger_event_after_level(level: int) -> bool:
+	return _get_event_id_after_level(level) != ""
+
+func _get_event_id_after_level(level: int) -> String:
+	match level:
+		3:
+			return "pantry"
+		6:
+			return "team_building"
+		8:
+			return "ultimate_evolution"
+		9:
+			return "desk_organizing"
+		_:
+			return ""
 
 # 敌人数据 definition
 var enemies_data = {
@@ -141,23 +209,47 @@ var enemies_data = {
 		"hp": 60,
 		"intent": "意图：高频连击准备中"
 	},
+	3: {
+		"name": "薪水小偷浣熊",
+		"image": "res://Assets/Images/Raccoon.png",
+		"hp": 80,
+		"intent": "意图：盯住你的序列槽"
+	},
 	4: {
 		"name": "项目组长监控猿",
 		"image": "res://Assets/Images/kingkong.png",
 		"hp": 120,
 		"intent": "意图：锁定你的 Emoji 槽位"
 	},
-	6: {
+	5: {
 		"name": "会议树懒",
 		"image": "res://Assets/Images/Sloth.png",
-		"hp": 150,
+		"hp": 140,
 		"intent": "意图：塞入垃圾文件卡"
+	},
+	6: {
+		"name": "审计猎犬",
+		"image": "res://Assets/Images/dog.png",
+		"hp": 160,
+		"intent": "意图：发布合规标准"
+	},
+	7: {
+		"name": "PUA 毒蛇",
+		"image": "res://Assets/Images/snake.png",
+		"hp": 180,
+		"intent": "意图：反转你的回血"
 	},
 	8: {
 		"name": "画饼蜘蛛",
 		"image": "res://Assets/Images/spider.png",
 		"hp": 200,
 		"intent": "意图：编织虚假目标"
+	},
+	9: {
+		"name": "KPI 九头蛇",
+		"image": "res://Assets/Images/Hydra.png",
+		"hp": 260,
+		"intent": "意图：分裂指标回血"
 	},
 	10: {
 		"name": "三头狮 CEO",
@@ -323,6 +415,90 @@ var junk_cards = {
 		"cost": 1,
 		"description": "打出后本回合摸鱼力 -1。不打出则下回合抽牌 -1。",
 		"type": "junk_goal"
+	}
+}
+
+# 随机事件池定义（20 个）
+var random_events = {
+	"pantry_gossip": {
+		"title": "茶水间八卦",
+		"desc": "你在茶水间接咖啡时，听到几个同事正在窃窃私语，似乎在讨论关于下个阶段的某种‘变动’..."
+	},
+	"ppt_help": {
+		"title": "同事求助",
+		"desc": "邻座的实习生拿着厚厚的一叠文档，可怜兮兮地看着你：‘前辈，这个PPT我实在调不完了，能不能帮帮我？’"
+	},
+	"emoji_misfire": {
+		"title": "群聊手滑",
+		"desc": "你在公司大群里吐槽老板，结果不小心点错了一个极其嚣张的表情包，且撤回时间只剩几秒了！"
+	},
+	"elevator_boss": {
+		"title": "饮水机遇老板",
+		"desc": "电梯门开了，里面竟然只有老板一个人。在这尴尬的密闭空间里，你必须做出反应。"
+	},
+	"printer_jam": {
+		"title": "打印机卡纸",
+		"desc": "打印机发出嘶哑的鸣叫，然后彻底卡死了。一堆废纸塞在出口，而你急用的文件还没印出来。"
+	},
+	"ac_break": {
+		"title": "中央空调故障",
+		"desc": "办公室的中央空调突然停止了运转，沉闷闷热的空气迅速在工位间扩散开来，汗水开始打湿衬衫。"
+	},
+	"mystery_parcel": {
+		"title": "神秘快递",
+		"desc": "前台通知有你的快递，但你最近并没有买东西。这个神秘的包裹里会装着什么呢？"
+	},
+	"elevator_encounter": {
+		"title": "电梯偶遇",
+		"desc": "早高峰的电梯口挤满了人，你正面临一个抉择：是硬挤进去，还是等下一趟？"
+	},
+	"power_outage": {
+		"title": "停电通知",
+		"desc": "整栋大楼的灯光突然熄灭，屏幕也瞬间变黑。公司停电了！这是上天给你的某种暗示吗？"
+	},
+	"blue_screen": {
+		"title": "蓝屏瞬间",
+		"desc": "你的电脑突然蓝屏了，那一抹刺眼的蓝色伴随着未保存文档的哀鸣，让你的心态濒临崩溃。"
+	},
+	"old_notes": {
+		"title": "旧工位笔记",
+		"desc": "你在整理工位时，从抽屉深处翻出了一本前任同事留下的笔记，上面涂满了密密麻麻的符号。"
+	},
+	"checkup": {
+		"title": "体检报告",
+		"desc": "公司的年度体检报告发到了你的邮箱。虽然你觉得自己还能加班，但数据或许有不同的看法。"
+	},
+	"bathroom_break": {
+		"title": "带薪如厕",
+		"desc": "你在带薪如厕时，隔壁传来了熟悉的游戏音效。看来，这里的摸鱼氛围比你想象的还要浓厚。"
+	},
+	"caught_slacking": {
+		"title": "摸鱼被抓包",
+		"desc": "当你正全神贯注地在屏幕上玩连连看时，主管不知何时已经悄无声息地站在了你的身后。"
+	},
+	"side_job": {
+		"title": "私活邀请",
+		"desc": "一个猎头在社交平台上私信你，提供了一个酬劳丰厚但极其耗费精力的私活邀请。"
+	},
+	"trash_treasure": {
+		"title": "深夜垃圾桶",
+		"desc": "深夜下班时，你路过茶水间的垃圾桶，发现里面塞着一份看起来还没被拆封的数据报表。"
+	},
+	"mass_test": {
+		"title": "全员核酸",
+		"desc": "公司通知全员进行核酸检测（或者某种突击体检），长长的队伍已经排到了电梯厅。"
+	},
+	"broken_chair": {
+		"title": "办公椅坏了",
+		"desc": "你正要坐下，办公椅突然发出一声脆响，靠背彻底坏了。接下来的日子你可能得‘站’着办公了。"
+	},
+	"likes": {
+		"title": "朋友圈点赞",
+		"desc": "你发了一张深夜加班的照片到朋友圈，很快就有几个同事在下面点赞并评论了。"
+	},
+	"boss_promise": {
+		"title": "老板的画饼",
+		"desc": "老板把你叫到办公室，语重心长地谈起了公司的未来愿景，顺便递给你一块‘画’得很圆的饼。"
 	}
 }
 
