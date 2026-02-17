@@ -9,6 +9,7 @@ func _ready():
 	next_button.hide()
 	_setup_ui_styles()
 	_create_floating_decorations()
+	_setup_deck_button()
 	if has_node("%ResignationBar"):
 		%ResignationBar.value = GameManager.current_level
 	
@@ -127,6 +128,20 @@ func _style_resignation_bar(bar: ProgressBar):
 		label.text = "离职进度: %d / 10" % GameManager.current_level
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+func _setup_deck_button():
+	var deck_btn = Button.new()
+	deck_btn.text = " 🗃️ 查看牌库 "
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color("#fdf5e6")
+	style.set_corner_radius_all(10)
+	style.shadow_size = 2
+	deck_btn.add_theme_stylebox_override("normal", style)
+	deck_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+	deck_btn.position = Vector2(20, 20)
+	deck_btn.custom_minimum_size = Vector2(140, 40)
+	add_child(deck_btn)
+	deck_btn.pressed.connect(func(): GameManager.show_deck_viewer(self))
 
 func _create_button_style(color_hex: String, hover_hex: String) -> Dictionary:
 	var normal = StyleBoxFlat.new()
@@ -384,22 +399,20 @@ func setup_pantry():
 		else:
 			finish_event("茶水间空空如也...")
 	)
-	add_option("扔掉废话 (移除 1 张基础卡)", func():
-		var removed = false
-		for i in range(GameManager.player_deck.size()):
-			if GameManager.player_deck[i].name in ["键盘输出", "摸鱼喝水"]:
-				GameManager.player_deck.remove_at(i)
-				removed = true
-				break
-		if removed:
-			finish_event("你扔掉了一张废话卡，心情舒畅。")
-		else:
-			finish_event("你手里已经没有废话了。")
+	add_option("扔掉废话 (手动删卡)", func():
+		GameManager.show_deck_viewer(self, true, func():
+			finish_event("你扔掉了一张不需要的卡牌，心情舒畅。")
+		)
 	)
 
 func setup_training():
 	title_label.text = "【技能培训】"
 	description_label.text = "HR 正在台上满怀激情地讲解着公司文化和职业规划，但台下的你只关心如何在这场漫长的会议中神不知鬼不觉地提升自己的‘生存技巧’。这是一次难得的学习机会——针对摸鱼而言。"
+	add_option("带薪补觉 (回复 40% 压力)", func():
+		var heal = int(GameManager.max_player_hp * 0.4)
+		GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + heal)
+		finish_event("你在培训课上偷偷补了个觉，压力大幅缓解。")
+	)
 	add_option("提升摸鱼效率 (最大 AP +1)", func():
 		GameManager.max_ap += 1
 		finish_event("你的摸鱼效率提升了！当前最大 AP: %d" % GameManager.max_ap)
@@ -468,16 +481,10 @@ func setup_desk_organizing():
 		GameManager.player_hp = GameManager.max_player_hp
 		finish_event("准备好迎接最终挑战了。")
 	)
-	add_option("精简卡组 (移除 2 张基础卡)", func():
-		var removed_count = 0
-		for i in range(GameManager.player_deck.size() - 1, -1, -1):
-			var card = GameManager.player_deck[i]
-			if card.name == "键盘输出" or card.name == "摸鱼喝水":
-				GameManager.player_deck.remove_at(i)
-				removed_count += 1
-				if removed_count >= 2:
-					break
-		finish_event("你移除了 %d 张废话卡，卡组变得更精炼了。" % removed_count)
+	add_option("精简卡组 (手动删卡)", func():
+		GameManager.show_deck_viewer(self, true, func():
+			finish_event("你扔掉了一张不需要的卡牌，卡组变得更精炼了。")
+		)
 	)
 
 func add_option(text: String, callback: Callable):

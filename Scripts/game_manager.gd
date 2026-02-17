@@ -4,8 +4,8 @@ extends Node
 var selected_hero: CharacterData
 
 # 玩家状态持久化
-var player_hp: int = 100
-var max_player_hp: int = 100
+var player_hp: int = 120
+var max_player_hp: int = 120
 var player_deck: Array = []
 var is_tutorial_mode: bool = false
 
@@ -13,7 +13,7 @@ var is_tutorial_mode: bool = false
 var current_level: int = 1
 var max_levels: int = 10
 var evolution_path: String = "" 
-var max_ap: int = 3 # 全局最大 AP
+var max_ap: int = 4 # 全局最大 AP
 var pending_event_id: String = ""
 var pending_random_event_id: String = ""
 var last_battle_level: int = 0
@@ -54,10 +54,10 @@ func start_game(hero: CharacterData):
 	load_current_level_scene()
 
 func reset_run():
-	player_hp = 100
-	max_player_hp = 100
+	player_hp = 120
+	max_player_hp = 120
 	current_level = 1
-	max_ap = 3
+	max_ap = 4
 	evolution_path = ""
 	pending_event_id = ""
 	pending_random_event_id = ""
@@ -121,9 +121,111 @@ func get_random_reward_cards(count: int = 3) -> Array:
 	if selected_hero:
 		pool.append_array(selected_hero.card_pool)
 	
-	for i in range(count):
-		rewards.append(pool[randi() % pool.size()].duplicate())
+	# 避免重复
+	pool.shuffle()
+	for i in range(min(count, pool.size())):
+		rewards.append(pool[i].duplicate())
 	return rewards
+
+func show_deck_viewer(parent: Node, can_remove: bool = false, remove_callback: Callable = Callable()):
+	var canvas = CanvasLayer.new()
+	canvas.layer = 110
+	parent.add_child(canvas)
+	
+	var root = Control.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	canvas.add_child(root)
+	
+	var bg = ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.9)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_child(bg)
+	
+	var vbox = VBoxContainer.new()
+	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vbox.add_theme_constant_override("margin_top", 40)
+	vbox.add_theme_constant_override("margin_bottom", 40)
+	root.add_child(vbox)
+	
+	var title = Label.new()
+	title.text = "--- 我的牌库 (%d 张) ---" % player_deck.size()
+	if can_remove:
+		title.text = "--- 整理工位：选择一张要丢弃的卡牌 ---"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_color_override("font_color", Color.GOLD)
+	vbox.add_child(title)
+	
+	var scroll = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+	
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 50)
+	margin.add_theme_constant_override("margin_right", 50)
+	margin.add_theme_constant_override("margin_top", 20)
+	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(margin)
+	
+	var grid = GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 20)
+	grid.add_theme_constant_override("v_separation", 20)
+	margin.add_child(grid)
+	
+	# 填充卡牌
+	for i in range(player_deck.size()):
+		var data = player_deck[i]
+		var card_box = PanelContainer.new()
+		card_box.custom_minimum_size = Vector2(160, 220)
+		var style = StyleBoxFlat.new()
+		style.bg_color = Color("#fdf5e6")
+		style.set_corner_radius_all(10)
+		style.border_width_left = 2
+		style.border_width_top = 2
+		style.border_width_right = 2
+		style.border_width_bottom = 2
+		style.border_color = Color("#d2b48c")
+		card_box.add_theme_stylebox_override("panel", style)
+		grid.add_child(card_box)
+		
+		var card_vbox = VBoxContainer.new()
+		card_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		card_box.add_child(card_vbox)
+		
+		var emoji_label = Label.new()
+		emoji_label.text = data.emoji
+		emoji_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		emoji_label.add_theme_font_size_override("font_size", 60)
+		card_vbox.add_child(emoji_label)
+		
+		var name_label = Label.new()
+		name_label.text = data.name
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_label.add_theme_font_size_override("font_size", 18)
+		name_label.add_theme_color_override("font_color", Color.BLACK)
+		card_vbox.add_child(name_label)
+		
+		if can_remove:
+			var btn = Button.new()
+			btn.text = "丢弃"
+			btn.custom_minimum_size = Vector2(80, 30)
+			btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			card_vbox.add_child(btn)
+			btn.pressed.connect(func():
+				player_deck.remove_at(i)
+				canvas.queue_free()
+				if remove_callback.is_valid():
+					remove_callback.call()
+			)
+	
+	var close_btn = Button.new()
+	close_btn.text = "返回"
+	if can_remove: close_btn.text = "取消"
+	close_btn.custom_minimum_size = Vector2(200, 60)
+	close_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(close_btn)
+	close_btn.pressed.connect(canvas.queue_free)
 
 func load_current_level_scene():
 	var scene_path = "res://Scenes/battle_scene.tscn"
@@ -200,61 +302,61 @@ var enemies_data = {
 	1: {
 		"name": "传声鹦鹉",
 		"image": "res://Assets/Images/parrot.png",
-		"hp": 50,
+		"hp": 35,
 		"intent": "意图：准备复制你的下一张牌"
 	},
 	2: {
 		"name": "闹钟刺猬",
 		"image": "res://Assets/Images/hedgehog.png",
-		"hp": 60,
+		"hp": 45,
 		"intent": "意图：高频连击准备中"
 	},
 	3: {
 		"name": "薪水小偷浣熊",
 		"image": "res://Assets/Images/Raccoon.png",
-		"hp": 80,
+		"hp": 60,
 		"intent": "意图：盯住你的序列槽"
 	},
 	4: {
 		"name": "项目组长监控猿",
 		"image": "res://Assets/Images/kingkong.png",
-		"hp": 120,
+		"hp": 90,
 		"intent": "意图：锁定你的 Emoji 槽位"
 	},
 	5: {
 		"name": "会议树懒",
 		"image": "res://Assets/Images/Sloth.png",
-		"hp": 140,
+		"hp": 110,
 		"intent": "意图：塞入垃圾文件卡"
 	},
 	6: {
 		"name": "审计猎犬",
 		"image": "res://Assets/Images/dog.png",
-		"hp": 160,
+		"hp": 130,
 		"intent": "意图：发布合规标准"
 	},
 	7: {
 		"name": "PUA 毒蛇",
 		"image": "res://Assets/Images/snake.png",
-		"hp": 180,
+		"hp": 150,
 		"intent": "意图：反转你的回血"
 	},
 	8: {
 		"name": "画饼蜘蛛",
 		"image": "res://Assets/Images/spider.png",
-		"hp": 200,
+		"hp": 170,
 		"intent": "意图：编织虚假目标"
 	},
 	9: {
 		"name": "KPI 九头蛇",
 		"image": "res://Assets/Images/Hydra.png",
-		"hp": 260,
+		"hp": 220,
 		"intent": "意图：分裂指标回血"
 	},
 	10: {
 		"name": "三头狮 CEO",
 		"image": "res://Assets/Images/Boss.png",
-		"hp": 500,
+		"hp": 400,
 		"intent": "意图：释放【KPI 考核】"
 	}
 }
@@ -266,7 +368,7 @@ func get_current_enemy():
 	return {
 		"name": "职场小怪",
 		"image": "res://Assets/Images/parrot.png",
-		"hp": 40 + current_level * 10,
+		"hp": 30 + current_level * 8,
 		"intent": "意图：让你加班"
 	}
 
@@ -355,13 +457,13 @@ var character_combos = {
 
 # 通用基础卡池
 var universal_cards: Array = [
-	{"name": "键盘输出", "emoji": "⌨️", "cost": 1, "description": "造成 5 点伤害", "type": "attack", "value": 5},
-	{"name": "摸鱼喝水", "emoji": "💧", "cost": 1, "description": "回复 7 点压力 (HP)", "type": "heal", "value": 7},
-	{"name": "小丑自嘲", "emoji": "🤡", "cost": 1, "description": "造成 3 点伤害，抽 1 张牌", "type": "attack_draw", "value": 3},
+	{"name": "键盘输出", "emoji": "⌨️", "cost": 1, "description": "造成 8 点伤害", "type": "attack", "value": 8},
+	{"name": "摸鱼喝水", "emoji": "💧", "cost": 1, "description": "回复 10 点压力 (HP)", "type": "heal", "value": 10},
+	{"name": "小丑自嘲", "emoji": "🤡", "cost": 1, "description": "造成 5 点伤害，抽 1 张牌", "type": "attack_draw", "value": 5},
 	{"name": "午后咖啡", "emoji": "☕", "cost": 0, "description": "获得 1 点摸鱼力 (AP) 并抽一张牌", "type": "buff_ap_draw", "value": 1},
-	{"name": "带薪拉屎", "emoji": "💩", "cost": 1, "description": "施加 3 层中毒并抽 1 张牌", "type": "special_poop"},
-	{"name": "工位补觉", "emoji": "💤", "cost": 1, "description": "回复 10 HP，抽 1 张牌", "type": "heal_draw", "value": 10},
-	{"name": "老板画饼", "emoji": "🍞", "cost": 1, "description": "获得 6 点护盾，抽 1 张牌", "type": "shield_draw", "value": 6},
+	{"name": "带薪拉屎", "emoji": "💩", "cost": 1, "description": "施加 5 层中毒并抽 1 张牌", "type": "special_poop"},
+	{"name": "工位补觉", "emoji": "💤", "cost": 1, "description": "回复 15 HP，抽 1 张牌", "type": "heal_draw", "value": 15},
+	{"name": "老板画饼", "emoji": "🍞", "cost": 1, "description": "获得 10 点护盾，抽 1 张牌", "type": "shield_draw", "value": 10},
 	{"name": "极限跃动", "emoji": "🏃", "cost": 1, "description": "获得 1 回合闪避并抽 1 张牌", "type": "evasion_draw", "value": 1},
 	{"name": "灵光一闪", "emoji": "💡", "cost": 1, "description": "抽 2 张牌", "type": "draw_only", "value": 2},
 	{"name": "甩锅", "emoji": "🛡️", "cost": 1, "description": "获得 5 点护盾并造成 3 点伤害", "type": "shield_attack", "value": 5},

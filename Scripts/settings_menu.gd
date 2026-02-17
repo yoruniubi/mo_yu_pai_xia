@@ -158,6 +158,10 @@ func _apply_checkbox_style(checkbox: CheckBox) -> void:
 	checkbox.add_theme_font_size_override("font_size", 22)
 
 func _apply_slider_style(slider: HSlider) -> void:
+	slider.min_value = 0
+	slider.max_value = 100
+	slider.step = 1
+	
 	var grab = StyleBoxFlat.new()
 	grab.bg_color = Color("#8fb9aa")
 	grab.set_corner_radius_all(8)
@@ -200,8 +204,8 @@ func _setup_signals() -> void:
 func _load_settings() -> void:
 	var cfg = SettingsManager.settings
 	fullscreen_check.button_pressed = cfg["fullscreen"]
-	master_slider.value = cfg["master_volume_db"]
-	bgm_slider.value = cfg["bgm_volume_db"]
+	master_slider.value = _db_to_percent(cfg["master_volume_db"])
+	bgm_slider.value = _db_to_percent(cfg["bgm_volume_db"])
 	_update_volume_labels()
 
 	var res_idx = resolution_values.find(cfg["resolution"])
@@ -214,20 +218,30 @@ func _load_settings() -> void:
 		fullscreen_check.disabled = true
 
 func _update_volume_labels() -> void:
-	master_value.text = "%d dB" % int(master_slider.value)
-	bgm_value.text = "%d dB" % int(bgm_slider.value)
+	master_value.text = "%d%%" % int(master_slider.value)
+	bgm_value.text = "%d%%" % int(bgm_slider.value)
+
+func _db_to_percent(db: float) -> float:
+	if db <= -79: return 0.0
+	# 使用幂函数映射，使得 -6dB 对应约 30%
+	# pow(0.3, 0.57) ≈ 0.5 (即 -6dB)
+	return pow(db_to_linear(db), 1.0/0.57) * 100.0
+
+func _percent_to_db(percent: float) -> float:
+	if percent <= 0: return -80.0
+	return linear_to_db(pow(percent / 100.0, 0.57))
 
 func _on_fullscreen_toggled(pressed: bool) -> void:
 	SettingsManager.settings["fullscreen"] = pressed
 	SettingsManager.apply_display_settings()
 
 func _on_master_volume_changed(value: float) -> void:
-	SettingsManager.settings["master_volume_db"] = value
+	SettingsManager.settings["master_volume_db"] = _percent_to_db(value)
 	SettingsManager.apply_audio_settings()
 	_update_volume_labels()
 
 func _on_bgm_volume_changed(value: float) -> void:
-	SettingsManager.settings["bgm_volume_db"] = value
+	SettingsManager.settings["bgm_volume_db"] = _percent_to_db(value)
 	SettingsManager.apply_audio_settings()
 	_update_volume_labels()
 

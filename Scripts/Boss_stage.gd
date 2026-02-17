@@ -6,7 +6,10 @@ extends Control
 @onready var hero_hp_bar = %HeroHPBar
 @onready var enemy_name_label = %EnemyName
 @onready var enemy_hp_bar = %EnemyHPBar
-@onready var intent_label = %IntentLabel
+@onready var intent_card = %IntentCard
+@onready var intent_icon = %IntentIcon
+@onready var intent_text = %IntentText
+@onready var intent_description = %IntentDescription
 @onready var energy_label = %EnergyLabel
 @onready var hand_container = %HandContainer
 @onready var emoji_slot_container = %EmojiSlot
@@ -30,10 +33,10 @@ var discard_pile = []
 var is_battle_over = false # 战斗结束锁
 
 # 战斗数值
-var hero_hp = 100 # 初始 100 生命
+var hero_hp = 120 # 初始 120 生命
 var hero_shield = 0
 var enemy_hp = 100
-var current_ap = 3
+var current_ap = 4
 
 # 特殊状态变量 (同步 battle_scene)
 var enemy_fire_stacks = 0
@@ -167,6 +170,13 @@ func setup_button_style():
 		combo_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 		combo_btn.focus_mode = Control.FOCUS_NONE
 		combo_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+		
+		# 添加图标
+		combo_btn.text = " 📜 连招一览"
+		
+		# 放在右上角
+		combo_btn.position = Vector2(get_viewport_rect().size.x - 165, 15)
+		combo_btn.custom_minimum_size = Vector2(150, 45)
 
 func _create_style(color_hex: String, radius: int, shadow: int) -> StyleBoxFlat:
 	var sb = StyleBoxFlat.new()
@@ -440,14 +450,16 @@ func execute_card_effect(data: Dictionary):
 			recorded_data_value = last_damage_dealt
 			current_ap += 1
 		"red_tape":
-			intent_label.text = "意图：流程审批中 (发呆)"
+			intent_icon.text = "⏳"
+			intent_text.text = "流程审批中"
 			skip_enemy_turn = true
 		"paid_leave":
 			apply_heal_to_hero(20)
 			is_waiting_next_turn = false
 			next_turn_extra_draws += 2
 		"cancel_intent":
-			intent_label.text = "意图：发呆中..."
+			intent_icon.text = "💤"
+			intent_text.text = "发呆中..."
 			if value > 1:
 				set_meta("skip_next_intent", true)
 		"filter_cards":
@@ -826,7 +838,8 @@ func trigger_combo(combo_data):
 			if not last_player_card_data.is_empty():
 				execute_card_effect(last_player_card_data)
 		"red_tape":
-			intent_label.text = "意图：流程审批中 (发呆)"
+			intent_icon.text = "⏳"
+			intent_text.text = "流程审批中"
 			skip_enemy_turn = true
 		"paid_leave":
 			apply_heal_to_hero(20)
@@ -928,6 +941,11 @@ func show_combo_directory():
 	var is_mobile = OS.has_feature("mobile")
 	dialog.min_size = Vector2i(760, 560) if is_mobile else Vector2i(720, 520)
 	add_child(dialog)
+	
+	# 调大关闭按钮
+	var ok_btn = dialog.get_ok_button()
+	ok_btn.custom_minimum_size = Vector2(180, 60)
+	ok_btn.add_theme_font_size_override("font_size", 26)
 
 	var container = MarginContainer.new()
 	container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -1054,7 +1072,8 @@ func enemy_turn():
 	# 同步 battle_scene 的跳过意图逻辑
 	if has_meta("skip_next_intent"):
 		remove_meta("skip_next_intent")
-		intent_label.text = "意图：继续发呆..."
+		intent_icon.text = "💤"
+		intent_text.text = "继续发呆..."
 		await get_tree().create_timer(1.0).timeout
 		start_player_turn()
 		return
@@ -1067,22 +1086,22 @@ func enemy_turn():
 	match current_phase:
 		0: # KPI 考核
 			print("CEO 释放了【KPI 考核】！")
-			var dmg = max(0, 15 - enemy_atk_reduction)
+			var dmg = max(0, 10 - enemy_atk_reduction) # 15 -> 10
 			apply_damage_to_hero(dmg)
 			inject_junk_card("kpi")
 		1: # 狼性文化
 			print("CEO 宣扬【狼性文化】！")
 			for i in range(4):
-				var dmg = max(0, 8 - enemy_atk_reduction)
+				var dmg = max(0, 5 - enemy_atk_reduction) # 8 -> 5
 				apply_damage_to_hero(dmg)
 				await get_tree().create_timer(0.2).timeout
 		2: # 谈谈梦想
 			print("CEO 和你【谈谈梦想】！")
-			var dmg = max(0, 10 - enemy_atk_reduction)
+			var dmg = max(0, 8 - enemy_atk_reduction) # 10 -> 8
 			apply_damage_to_hero(dmg)
-			enemy_hp += 40
+			enemy_hp += 30 # 40 -> 30
 			enemy_hp = min(500, enemy_hp)
-			spawn_floating_number(40, false, %BossSprite.global_position, Color.GREEN)
+			spawn_floating_number(30, false, %BossSprite.global_position, Color.GREEN)
 			update_ui_values()
 	
 	current_phase = (current_phase + 1) % 3
@@ -1095,10 +1114,20 @@ func enemy_turn():
 	start_player_turn()
 
 func _update_boss_intent():
+	intent_description.text = ""
 	match current_phase:
-		0: intent_label.text = "意图：KPI 考核 (增加 Combo 消耗)"
-		1: intent_label.text = "意图：狼性文化 (高频连击)"
-		2: intent_label.text = "意图：谈谈梦想 (回复耐性)"
+		0: 
+			intent_icon.text = "📉"
+			intent_text.text = "10"
+			intent_description.text = "造成伤害并往牌组塞入【KPI 考核】"
+		1: 
+			intent_icon.text = "🐺"
+			intent_text.text = "5 x 4"
+			intent_description.text = "发动四次连续攻击，宣扬狼性文化"
+		2: 
+			intent_icon.text = "💭"
+			intent_text.text = "8"
+			intent_description.text = "造成伤害并为自己回复 30 点耐性"
 
 func inject_junk_card(type: String):
 	var junk_data = GameManager.junk_cards.get(type)

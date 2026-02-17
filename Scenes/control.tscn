@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://cjaqh2sghmhdu"]
 
 [ext_resource type="Script" uid="uid://dmbnuml5l7lar" path="res://Scripts/control.gd" id="1_0fbet"]
-[ext_resource type="Resource" uid="uid://b161ik6f54ox5" path="res://Resources/squirrel.tres" id="2_62e2m"]
+[ext_resource type="Resource" path="res://Resources/squirrel.tres" id="2_62e2m"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card"]
 bg_color = Color(0.0784314, 0.0784314, 0.0784314, 1)

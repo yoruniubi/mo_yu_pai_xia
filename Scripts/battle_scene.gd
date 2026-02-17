@@ -6,7 +6,10 @@ extends Control
 @onready var hero_hp_bar = %HeroHPBar
 @onready var enemy_name_label = %EnemyName
 @onready var enemy_hp_bar = %EnemyHPBar
-@onready var intent_label = %IntentLabel
+@onready var intent_card = %IntentCard
+@onready var intent_icon = %IntentIcon
+@onready var intent_text = %IntentText
+@onready var intent_description = %IntentDescription
 @onready var energy_label = %EnergyLabel
 @onready var hand_container = %HandContainer
 @onready var end_turn_button = %EndTurnButton
@@ -30,10 +33,10 @@ var discard_pile = []
 var is_battle_over = false # 战斗结束锁，防止重复触发胜利/失败
 
 # 战斗数值
-var hero_hp = 100
+var hero_hp = 120
 var hero_shield = 0
 var enemy_hp = 100
-var current_ap = 3
+var current_ap = 4
 
 # 特殊状态变量
 var enemy_fire_stacks = 0
@@ -108,7 +111,8 @@ func _ready():
 	enemy_hp = enemy.hp
 	enemy_hp_bar.max_value = enemy.hp
 	enemy_hp_bar.value = enemy_hp
-	intent_label.text = enemy.intent
+	# 初始化意图显示
+	_update_enemy_intent()
 	%BossSprite.texture = load(enemy.image)
 	if "九头蛇" in enemy.name:
 		hydra_heads = 3
@@ -157,10 +161,27 @@ func _ready():
 		show_victory()
 		return
 	
-	# 8. 添加返回按钮
-	_setup_back_button()
+	# 8. 添加返回按钮与牌库按钮
+	_setup_battle_ui_buttons()
 
-func _setup_back_button():
+func _setup_battle_ui_buttons():
+	# 牌库按钮
+	var deck_btn = Button.new()
+	deck_btn.text = " 🗃️ 查看牌库 "
+	deck_btn.name = "DeckButton"
+	var style_deck = _create_style("#fdf5e6", 15, 2)
+	deck_btn.add_theme_stylebox_override("normal", style_deck)
+	deck_btn.add_theme_stylebox_override("hover", _create_style("#8fb9aa", 15, 4))
+	deck_btn.add_theme_stylebox_override("pressed", _create_style("#7aa899", 15, 0))
+	deck_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	deck_btn.focus_mode = Control.FOCUS_NONE
+	deck_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+	deck_btn.add_theme_font_size_override("font_size", 20)
+	deck_btn.position = Vector2(12, 65)
+	deck_btn.custom_minimum_size = Vector2(150, 44)
+	add_child(deck_btn)
+	deck_btn.pressed.connect(func(): GameManager.show_deck_viewer(self))
+
 	var back_btn = Button.new()
 	back_btn.text = " ↩ 放弃挑战 "
 	back_btn.name = "AbandonButton"
@@ -372,9 +393,13 @@ func setup_button_style():
 		combo_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 		combo_btn.focus_mode = Control.FOCUS_NONE
 		combo_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+		
+		# 添加图标
+		combo_btn.text = " 📜 连招一览"
+		
 		# 放在右上角
-		combo_btn.position = Vector2(get_viewport_rect().size.x - 145, 15)
-		combo_btn.custom_minimum_size = Vector2(130, 40)
+		combo_btn.position = Vector2(get_viewport_rect().size.x - 165, 15)
+		combo_btn.custom_minimum_size = Vector2(150, 45)
 
 func _on_restart_pressed():
 	GameManager.is_tutorial_mode = false
@@ -472,7 +497,8 @@ func enemy_turn():
 
 	if has_meta("skip_next_intent"):
 		remove_meta("skip_next_intent")
-		intent_label.text = "意图：继续发呆..."
+		intent_icon.text = "💤"
+		intent_text.text = "继续发呆..."
 		await get_tree().create_timer(1.0).timeout
 		start_player_turn()
 		return
@@ -509,7 +535,7 @@ func enemy_turn():
 		if hedgehog_turns_left <= 1:
 			if not hedgehog_combo_met:
 				spawn_floating_number("DEADLINE!", true, %BossSprite.global_position + Vector2(0, -120), Color.RED)
-				apply_pure_damage_to_hero(35)
+				apply_pure_damage_to_hero(15) # 进一步降低死线伤害
 				hedgehog_init()
 			else:
 				hedgehog_init()
@@ -517,14 +543,14 @@ func enemy_turn():
 			hedgehog_turns_left -= 1
 			print("刺猬发动连击！")
 			for i in range(3):
-				apply_damage_to_hero(8 + enemy_damage_bonus)
+				apply_damage_to_hero(4 + enemy_damage_bonus) # 降低连击伤害
 				await get_tree().create_timer(0.2).timeout
 	elif "树懒" in enemy_name:
-		apply_damage_to_hero(18 + enemy_damage_bonus)
+		apply_damage_to_hero(12 + enemy_damage_bonus)
 		print("树懒塞入了垃圾卡...")
 		inject_junk_card("meeting")
 	elif "监控猿" in enemy_name:
-		apply_damage_to_hero(25 + enemy_damage_bonus)
+		apply_damage_to_hero(15 + enemy_damage_bonus)
 		# 锁定逻辑简化：随机弃掉一张手牌
 		if hand_cards.size() > 0:
 			var idx = randi() % hand_cards.size()
@@ -534,16 +560,36 @@ func enemy_turn():
 			print("监控猿锁定了你的一张牌！")
 	elif "蜘蛛" in enemy_name:
 		print("画饼蜘蛛发动了【虚假目标】！")
-		apply_damage_to_hero(30 + enemy_damage_bonus)
+		apply_damage_to_hero(20 + enemy_damage_bonus)
 		inject_junk_card("goal")
+	elif "九头蛇" in enemy_name:
+		# KPI 九头蛇：多头回血机制
+		if hydra_head_damage_this_turn < hydra_head_hp:
+			var heal = 40
+			enemy_hp = min(enemy_hp_bar.max_value, enemy_hp + heal)
+			spawn_floating_number("指标未达成：回血", false, %BossSprite.global_position + Vector2(0, -120), Color.GREEN)
+		else:
+			spawn_floating_number("击破一个指标！", false, %BossSprite.global_position + Vector2(0, -120), Color.GOLD)
+			hydra_heads -= 1
+		apply_damage_to_hero(25 + enemy_damage_bonus)
 	elif "CEO" in enemy_name:
-		print("CEO 释放了【KPI 考核】！")
-		apply_damage_to_hero(45 + enemy_damage_bonus)
+		# CEO：三阶段状态切换
+		var state_roll = randi() % 3
+		if state_roll == 0:
+			set_meta("ceo_state", "lion") # 狮态：锁攻击
+			spawn_floating_number("【狮态】：严厉考核", false, %BossSprite.global_position + Vector2(0, -120), Color.RED)
+		elif state_roll == 1:
+			set_meta("ceo_state", "sheep") # 羊态：伤上限
+			spawn_floating_number("【羊态】：温水青蛙", false, %BossSprite.global_position + Vector2(0, -120), Color.WHITE)
+		else:
+			set_meta("ceo_state", "snake") # 蛇态：AP 封印
+			spawn_floating_number("【蛇态】：阴暗压榨", false, %BossSprite.global_position + Vector2(0, -120), Color.PURPLE)
+			next_turn_extra_ap -= 2
+		
+		apply_damage_to_hero(35 + enemy_damage_bonus)
 		inject_junk_card("kpi")
-		# 额外效果：减少玩家 1 点 AP，持续一回合
-		next_turn_extra_ap -= 1
 	else:
-		var damage = 10 + (GameManager.current_level * 3) + enemy_damage_bonus
+		var damage = 5 + (GameManager.current_level * 2) + enemy_damage_bonus
 		# 应用攻击削减
 		damage = max(0, damage - enemy_atk_reduction)
 		enemy_atk_reduction = 0 # 重置
@@ -634,6 +680,9 @@ func start_player_turn():
 	if GameManager.hp_drain_per_turn > 0:
 		apply_damage_to_hero(GameManager.hp_drain_per_turn)
 	
+	if has_meta("ceo_state"):
+		remove_meta("ceo_state")
+		
 	if is_waiting_next_turn:
 		is_waiting_next_turn = false
 		print("本回合待岗结束，保留手牌继续行动")
@@ -829,6 +878,13 @@ func _on_card_played(card_node):
 		%AnimationManager.play_player_attack_anim(content)
 	
 	var type = data.get("type", "")
+	
+	# CEO 狮态逻辑：非攻击卡扣血
+	if has_meta("ceo_state") and get_meta("ceo_state") == "lion":
+		if not type.begins_with("attack"):
+			var penalty = int(GameManager.max_player_hp * 0.1)
+			apply_pure_damage_to_hero(penalty)
+			spawn_floating_number("违规出牌!", false, hero_sprite.global_position + Vector2(0, -100), Color.RED)
 	# 特殊逻辑：文件夹配合周报
 	if type == "attack_conditional_keyboard" and not cards_played_this_turn.is_empty():
 		var last = cards_played_this_turn.back()
@@ -1018,6 +1074,12 @@ func check_combos():
 func trigger_combo(combo_data):
 	print("！！！触发连招：", combo_data.name, " -> ", combo_data.effect)
 	
+	# 刺猬关卡特殊逻辑：打出包含键盘的连招可避险
+	if "刺猬" in enemy_name_label.text:
+		if "⌨️" in combo_data.parts:
+			hedgehog_combo_met = true
+			spawn_floating_number("SAFE!", false, %BossSprite.global_position + Vector2(0, -120), Color.GREEN)
+
 	# --- 视觉特效 ---
 	if %AnimationManager.has_method("play_combo_flash"):
 		%AnimationManager.play_combo_flash()
@@ -1076,7 +1138,8 @@ func trigger_combo(combo_data):
 			if not last_player_card_data.is_empty():
 				execute_card_effect(last_player_card_data)
 		"red_tape":
-			intent_label.text = "意图：流程审批中 (发呆)"
+			intent_icon.text = "📋"
+			intent_text.text = "流程审批中"
 			skip_enemy_turn = true
 		"paid_leave":
 			apply_heal_to_hero(20)
@@ -1182,6 +1245,11 @@ func show_combo_directory():
 	var is_mobile = OS.has_feature("mobile")
 	dialog.min_size = Vector2i(760, 560) if is_mobile else Vector2i(720, 520)
 	add_child(dialog)
+	
+	# 调大关闭按钮
+	var ok_btn = dialog.get_ok_button()
+	ok_btn.custom_minimum_size = Vector2(180, 60)
+	ok_btn.add_theme_font_size_override("font_size", 26)
 
 	var container = MarginContainer.new()
 	container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -1343,14 +1411,16 @@ func execute_card_effect(data: Dictionary):
 			recorded_data_value = last_damage_dealt
 			current_ap += 1
 		"red_tape":
-			intent_label.text = "意图：流程审批中 (发呆)"
+			intent_icon.text = "📋"
+			intent_text.text = "流程审批中"
 			skip_enemy_turn = true
 		"paid_leave":
 			apply_heal_to_hero(20)
 			is_waiting_next_turn = false
 			next_turn_extra_draws += 2
 		"cancel_intent":
-			intent_label.text = "意图：发呆中..."
+			intent_icon.text = "💤"
+			intent_text.text = "发呆中..."
 			if value > 1:
 				set_meta("skip_next_intent", true)
 		"filter_cards":
@@ -1525,6 +1595,11 @@ func execute_card_effect(data: Dictionary):
 func apply_damage_to_enemy(amount: int):
 	if is_battle_over: return
 	var final_dmg = amount
+	
+	# CEO 羊态逻辑：单次伤害上限
+	if has_meta("ceo_state") and get_meta("ceo_state") == "sheep":
+		final_dmg = min(final_dmg, 10)
+		
 	if final_dmg > 0:
 		final_dmg = int(final_dmg * player_damage_multiplier)
 	if enemy_vulnerability > 0:
@@ -1625,6 +1700,15 @@ func show_reward_selection():
 		var spacer = Control.new()
 		spacer.custom_minimum_size = Vector2(0, 10)
 		card_vbox.add_child(spacer)
+		var desc_label = Label.new()
+		desc_label.text = data.get("description", "")
+		desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		desc_label.custom_minimum_size = Vector2(160, 0)
+		desc_label.add_theme_font_size_override("font_size", 14)
+		desc_label.add_theme_color_override("font_color", Color("#555555"))
+		card_vbox.add_child(desc_label)
+
 		var select_btn = Button.new()
 		reward_buttons.append(select_btn)
 		select_btn.text = "选择"
@@ -1659,45 +1743,71 @@ func apply_shield_to_hero(amount: int):
 func _update_enemy_intent():
 	var enemy = GameManager.get_current_enemy()
 	var base_dmg = 10 + (GameManager.current_level * 3)
-	intent_label.remove_theme_color_override("font_color")
-	intent_label.scale = Vector2.ONE
+	
+	# 重置样式
+	intent_text.remove_theme_color_override("font_color")
+	intent_description.text = ""
 	
 	if "鹦鹉" in enemy.name:
-		intent_label.text = "意图: 📝 复制"
+		intent_icon.text = "📝"
+		intent_text.text = "复制"
+		intent_description.text = "模仿你上一张打出的卡牌效果"
 	elif "刺猬" in enemy.name:
-		intent_label.text = "意图: ⏰ %d 回合内⌨️连招" % hedgehog_turns_left
+		intent_icon.text = "⏰"
+		intent_text.text = "4 x 3"
+		intent_description.text = "%d回合内未打出⌨️连招将受大伤" % hedgehog_turns_left
 	elif "浣熊" in enemy.name:
-		intent_label.text = "意图: 🦝 偷序列"
+		intent_icon.text = "🦝"
+		intent_text.text = "顺手牵羊"
+		intent_description.text = "打出2个Emoji后有概率偷走序列"
 	elif "审计" in enemy.name:
+		intent_icon.text = "🔍"
 		if compliance_rule.is_empty():
-			intent_label.text = "意图: 🔍 合规检查"
+			intent_text.text = "合规检查"
+			intent_description.text = "下回合将发布出牌限制规则"
 		elif compliance_rule.type == "ap_parity":
-			intent_label.text = "意图: 🔍 AP 必须为 %s" % ("偶数" if compliance_rule.value == "even" else "奇数")
+			intent_text.text = "AP须%s" % ("偶数" if compliance_rule.value == "even" else "奇数")
+			intent_description.text = "违反规则将导致伤害转化为回血"
 		else:
-			intent_label.text = "意图: 🔍 Emoji 颜色 ≤ %d" % compliance_rule.value
+			intent_text.text = "颜色≤%d" % compliance_rule.value
+			intent_description.text = "使用的Emoji颜色种类不能超过限制"
 	elif "毒蛇" in enemy.name:
-		intent_label.text = "意图: 🐍 反转回血"
+		intent_icon.text = "🐍"
+		intent_text.text = "认知反转"
+		intent_description.text = "所有回血/减压效果将变为伤害"
 	elif "树懒" in enemy.name:
-		intent_label.text = "意图: 💤 18 + 📄"
+		intent_icon.text = "📄"
+		intent_text.text = "12"
+		intent_description.text = "造成伤害并往手牌塞入【无意义文档】"
 	elif "监控猿" in enemy.name:
-		var slot_text = "第%d格" % (monkey_locked_slot + 1) if monkey_locked_slot >= 0 else "随机格"
+		intent_icon.text = "👁️"
+		var slot_text = "第%d格" % (monkey_locked_slot + 1) if monkey_locked_slot >= 0 else "随机"
 		var req_text = "?"
 		match monkey_locked_group:
 			"red": req_text = "🔥"
 			"blue": req_text = "💧"
 			"yellow": req_text = "📊"
 			"white": req_text = "⚪"
-		intent_label.text = "意图: 👁️ %s=%s" % [slot_text, req_text]
+		intent_text.text = "%s=%s" % [slot_text, req_text]
+		intent_description.text = "指定位置必须填入指定类型Emoji"
 	elif "蜘蛛" in enemy.name:
-		intent_label.text = "意图: 🕸️ 30 + 🕸️"
-		intent_label.add_theme_color_override("font_color", Color.ORANGE_RED)
+		intent_icon.text = "🕸️"
+		intent_text.text = "20"
+		intent_description.text = "造成伤害并塞入【虚假目标】"
+		intent_text.add_theme_color_override("font_color", Color.ORANGE_RED)
 	elif "九头蛇" in enemy.name:
-		intent_label.text = "意图: 🐲 分裂回血"
+		intent_icon.text = "🐲"
+		intent_text.text = "25"
+		intent_description.text = "若本回合未击破指标，Boss将大幅回血"
 	elif "CEO" in enemy.name:
-		intent_label.text = "意图: KPI 45 + 📉"
-		intent_label.add_theme_color_override("font_color", Color.RED)
+		intent_icon.text = "👑"
+		intent_text.text = "35"
+		intent_description.text = "造成伤害并切换形态（狮/羊/蛇）"
+		intent_text.add_theme_color_override("font_color", Color.RED)
 	else:
-		intent_label.text = "意图: ⚔️ %d" % base_dmg
+		intent_icon.text = "⚔️"
+		intent_text.text = str(base_dmg)
+		intent_description.text = "准备发动一次普通攻击"
 
 func spawn_floating_number(value: Variant, is_critical: bool, pos: Vector2, color: Color = Color.WHITE):
 	var fn = floating_number_scene.instantiate()
