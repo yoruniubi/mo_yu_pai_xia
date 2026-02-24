@@ -1628,28 +1628,40 @@ func execute_card_effect(data: Dictionary):
 					c.queue_free()
 					discarded_count += 1
 			update_hand_layout()
-			if discarded_count > 0:
-				if not has_meta("fire_multiplier"): set_meta("fire_multiplier", 1.0)
-				set_meta("fire_multiplier", get_meta("fire_multiplier") + discarded_count)
-				spawn_floating_number("FIRE BOOST x%d" % discarded_count, true, hero_sprite.global_position + Vector2(0, -100), Color.RED)
+			var boost = max(1, discarded_count)
+			enemy_fire_stacks += boost
+			apply_damage_to_enemy(12 + discarded_count * 6)
+			if not has_meta("fire_multiplier"):
+				set_meta("fire_multiplier", 1.0)
+			set_meta("fire_multiplier", get_meta("fire_multiplier") + boost)
+			spawn_floating_number("FIRE BOOST x%d" % boost, true, hero_sprite.global_position + Vector2(0, -100), Color.RED)
 		"ultimate_void":
 			var reduction = int(enemy_hp_bar.max_value * 0.2)
 			enemy_hp_bar.max_value -= reduction
 			enemy_hp = min(enemy_hp, enemy_hp_bar.max_value)
 			apply_heal_to_hero(reduction)
+			apply_shield_to_hero(int(reduction * 0.5))
+			enemy_atk_reduction += 5
 			spawn_floating_number("VOID", true, %BossSprite.global_position, Color.PURPLE)
 		"ultimate_vision":
-			apply_damage_to_enemy(recorded_data_value)
+			var base = max(20, recorded_data_value)
+			recorded_data_value = base
+			apply_damage_to_enemy(base)
 			cost_reduction_active = true
 			for c in hand_cards:
 				c.card_data["cost"] = 0
 				c.update_ui()
+			current_ap += 2
+			for i in range(2):
+				draw_card()
 			spawn_floating_number("VISIONARY", true, hero_sprite.global_position, Color.GOLD)
 		"ultimate_blacklist":
 			set_meta("boss_blacklisted", true)
 			intent_icon.text = "🚫"
 			intent_text.text = "已封印"
 			intent_description.text = "老板已被列入黑名单，无法行动且每回合受罚"
+			apply_damage_to_enemy(20)
+			apply_shield_to_hero(15)
 			spawn_floating_number("BLACKLISTED", true, %BossSprite.global_position, Color.BLACK)
 
 func apply_damage_to_enemy(amount: int):
