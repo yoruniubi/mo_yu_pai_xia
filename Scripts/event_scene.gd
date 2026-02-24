@@ -188,31 +188,33 @@ func setup_random_event(event_id: String):
 
 	match event_id:
 		"pantry_gossip":
-			add_option("[听听看] 揭示下关敌人意图，初始 AP -1", func():
+			add_option("[听听看] 揭示下关敌人意图", func():
 				var next_enemy = GameManager.enemies_data.get(GameManager.current_level + 1, {})
 				var intent = next_enemy.get("intent", "未知意图")
-				GameManager.next_battle_ap_bonus -= 1
 				finish_event("你偷听到了：%s" % intent)
 			)
-			add_option("[走开] 回复 10 压力", func():
-				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 10)
-				finish_event("你躲开了八卦，压力 -10。")
+			add_option("[走开] 回复 15 压力", func():
+				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 15)
+				finish_event("你躲开了八卦，压力 -15。")
 			)
 		"ppt_help":
-			add_option("[帮改PPT] 删掉 1 张强力卡，首张牌 0 费", func():
-				_remove_strong_card(1)
+			add_option("[帮改PPT] 删掉 1 张基础卡，首张牌 0 费", func():
+				_remove_basic_card(1)
 				GameManager.first_card_free = true
 				finish_event("你帮完PPT，获得了首张牌 0 费的被动。")
 			)
-			add_option("[拒绝] 压力 +5", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 5)
-				finish_event("你拒绝了求助，压力 +5。")
+			add_option("[拒绝] 压力 +1，获得 1 张随机卡", func():
+				GameManager.player_hp = max(0, GameManager.player_hp - 1)
+				var rewards = GameManager.get_random_reward_cards(1)
+				if rewards.size() > 0:
+					GameManager.player_deck.append(rewards[0])
+				finish_event("你拒绝了求助，但顺手学了一招，压力 +1。")
 			)
 		"emoji_misfire":
-			add_option("[发表情包] 随机得 1 张高级卡，Boss 伤害 +2", func():
+			add_option("[发表情包] 随机得 1 张高级卡，Boss 伤害 +1", func():
 				_add_random_high_cost_card()
-				GameManager.next_battle_enemy_damage_bonus += 2
-				finish_event("你顺走了一张高级卡，但老板更凶了。")
+				GameManager.next_battle_enemy_damage_bonus += 1
+				finish_event("你顺走了一张高级卡，老板稍微有点不悦。")
 			)
 			add_option("[及时撤回] 无事发生", func():
 				finish_event("你及时撤回，风平浪静。")
@@ -222,14 +224,13 @@ func setup_random_event(event_id: String):
 				GameManager.next_battle_ap_bonus += 1
 				finish_event("老板对你印象不错，初始 AP +1。")
 			)
-			add_option("[低头快走] 压力 +15", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 15)
-				finish_event("你低头快走，压力 +15。")
+			add_option("[低头快走] 压力 +2", func():
+				GameManager.player_hp = max(0, GameManager.player_hp - 2)
+				finish_event("你低头快走，压力 +2。") 
 			)
 		"printer_jam":
-			add_option("[踢一脚] 首回合爆炸伤害，随机丢 1 张手牌", func():
+			add_option("[踢一脚] 首回合爆炸伤害", func():
 				GameManager.start_battle_burst_damage = 25
-				GameManager.start_battle_discard_random_hand = true
 				finish_event("你踢了一脚，首回合爆炸伤害将触发。")
 			)
 			add_option("[清理] 升级 1 张基础卡", func():
@@ -237,31 +238,31 @@ func setup_random_event(event_id: String):
 				finish_event("你清理完毕，基础卡获得强化。")
 			)
 		"ac_break":
-			add_option("[忍受] 每回合压力 +2", func():
-				GameManager.hp_drain_per_turn += 2
-				finish_event("空调坏了，你每回合压力 +2。")
+			add_option("[忍受] 下场战斗初始压力 +3", func():
+				GameManager.player_hp = max(0, GameManager.player_hp - 3)
+				finish_event("空调坏了，你感到有些胸闷。")
 			)
 			add_option("[蹭空调] 获得 1 张闪避卡", func():
 				_add_evade_card()
 				finish_event("你蹭到了清凉，获得一张闪避卡。")
 			)
 		"mystery_parcel":
-			add_option("[拆开] 50% 免控耳机 / 50% 塞 2 张垃圾卡", func():
+			add_option("[拆开] 50% 免控耳机 / 50% 塞 1 张垃圾卡", func():
 				if randf() < 0.5:
 					_add_invincible_card()
 					finish_event("你拆到了免控耳机，获得无敌卡！")
 				else:
-					_add_junk_cards(2)
-					finish_event("你拆到了垃圾，卡组被污染了。")
+					_add_junk_cards(1)
+					finish_event("你拆到了垃圾，卡组被轻微污染。")
 			)
 			add_option("[退回] 压力 -5", func():
 				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 5)
 				finish_event("你退回快递，压力 -5。")
 			)
 		"elevator_encounter":
-			add_option("[挤进去] 压力 +10", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 10)
-				finish_event("拥挤的电梯让你压力 +10。")
+			add_option("[挤进去] 压力 +3", func():
+				GameManager.player_hp = max(0, GameManager.player_hp - 3)
+				finish_event("拥挤的电梯让你压力 +3。")
 			)
 			add_option("[等下一趟] 获得 1 张 ⏳ 连招卡", func():
 				_add_wait_card()
@@ -273,14 +274,14 @@ func setup_random_event(event_id: String):
 				GameManager.skip_rewards_battles = max(1, GameManager.skip_rewards_battles + 1)
 				finish_event("停电下班！下一场战斗直接跳过。")
 			)
-			add_option("[开备用电源] 压力 +20，下场伤害翻倍", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 20)
+			add_option("[开备用电源] 压力 +3，下场伤害翻倍", func():
+				GameManager.player_hp = max(0, GameManager.player_hp - 3)
 				GameManager.next_battle_damage_multiplier = 2.0
 				finish_event("你开了电源，下场伤害翻倍。")
 			)
 		"blue_screen":
-			add_option("[心态崩了] 压力 +30，获 1 张 0 费神卡", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 30)
+			add_option("[心态崩了] 压力 +5，获 1 张 0 费神卡", func():
+				GameManager.player_hp = max(0, GameManager.player_hp - 5)
 				_add_random_card_cost_zero()
 				finish_event("你心态崩了，获得一张 0 费神卡。")
 			)
@@ -302,8 +303,8 @@ func setup_random_event(event_id: String):
 				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 10)
 				finish_event("你选择不看，压力 -10。")
 			)
-			add_option("[看细节] 压力 +20，本局回血翻倍", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 20)
+			add_option("[看细节] 压力 +3，本局回血翻倍", func():
+				GameManager.player_hp = max(0, GameManager.player_hp - 3)
 				GameManager.heal_multiplier = 2.0
 				finish_event("你认真阅读，回血翻倍。")
 			)
@@ -312,26 +313,27 @@ func setup_random_event(event_id: String):
 				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 50)
 				finish_event("你摸鱼成功，压力回复 50。")
 			)
-			add_option("[抽烟] 攻击 +5，但每回合扣 1 AP", func():
+			add_option("[抽烟] 攻击 +5", func():
 				GameManager.attack_bonus_flat += 5
-				GameManager.ap_drain_per_turn += 1
-				finish_event("你抽了根烟，攻击 +5，但每回合扣 1 AP。")
+				finish_event("你抽了根烟，攻击 +5。")
 			)
 		"caught_slacking":
-			add_option("[推卸给AI] 随机 2 张卡变随机 Emoji", func():
-				_randomize_cards(2)
-				finish_event("你把锅甩给AI，卡组被重写了两张。")
+			add_option("[推卸给AI] 随机 1 张卡变随机 Emoji，并获得 1 张高级卡", func():
+				_randomize_cards(1)
+				_add_random_high_cost_card()
+				finish_event("你把锅甩给AI，卡组小幅调整，并顺走了一张高级卡。")
 			)
-			add_option("[老实认错] 移除 1 张强力卡", func():
-				_remove_strong_card(1)
-				finish_event("你认错了，强力卡被没收。")
+			add_option("[老实认错] 移除 1 张基础卡，压力 -5", func():
+				_remove_basic_card(1)
+				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 5)
+				finish_event("你认错了，删掉一张基础卡，压力 -5。")
 			)
 		"side_job":
-			add_option("[接单] 下 2 场无卡牌奖励，压力上限 +20", func():
-				GameManager.skip_rewards_battles = max(GameManager.skip_rewards_battles, 2)
-				GameManager.max_player_hp += 20
-				GameManager.player_hp += 20
-				finish_event("你接了私活，压力上限 +20。")
+			add_option("[接单] 下 1 场无卡牌奖励，压力上限 +15", func():
+				GameManager.skip_rewards_battles = max(GameManager.skip_rewards_battles, 1)
+				GameManager.max_player_hp += 15
+				GameManager.player_hp += 15
+				finish_event("你接了私活，压力上限 +15。")
 			)
 			add_option("[拒绝] 升级 2 张卡", func():
 				_upgrade_random_card(2)
@@ -350,18 +352,18 @@ func setup_random_event(event_id: String):
 				_add_invincible_card()
 				finish_event("你乖乖排队，获得无敌卡。")
 			)
-			add_option("[插队] 压力 +20", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 20)
-				finish_event("你插队成功，但压力 +20。")
+			add_option("[插队] 压力 +3", func():
+				GameManager.player_hp = max(0, GameManager.player_hp - 3)
+				finish_event("你插队成功，但压力 +3。")
 			)
 		"broken_chair":
 			add_option("[站着办公] 攻击 +3", func():
 				GameManager.attack_bonus_flat += 3
 				finish_event("你站着办公，攻击 +3。")
 			)
-			add_option("[修椅子] 压力 +10", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 10)
-				finish_event("你修好了椅子，压力 +10。")
+			add_option("[修椅子] 压力 +3", func():
+				GameManager.player_hp = max(0, GameManager.player_hp - 3)
+				finish_event("你修好了椅子，压力 +3。")
 			)
 		"likes":
 			add_option("[互赞] 随机 1 张卡伤害 +5", func():
@@ -372,14 +374,15 @@ func setup_random_event(event_id: String):
 				finish_event("你选择无视点赞。")
 			)
 		"boss_promise":
-			add_option("[吃饼] 获得 20 护盾卡，牌组塞 1 张垃圾卡", func():
+			add_option("[吃饼] 获得 20 护盾卡，压力 +2", func():
 				_add_shield_card()
-				_add_junk_cards(1)
-				finish_event("你吃下了画饼，获得护盾卡但被塞垃圾卡。")
+				GameManager.player_hp = max(0, GameManager.player_hp - 2)
+				finish_event("你吃下了画饼，获得护盾卡，压力 +2。")
 			)
-			add_option("[不吃] 压力 +5", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 5)
-				finish_event("你拒绝画饼，压力 +5。")
+
+			add_option("[不吃] 压力 +1", func():
+				GameManager.player_hp = max(0, GameManager.player_hp - 1)
+				finish_event("你拒绝画饼，压力 +1。")
 			)
 		_:
 			finish_event("你度过了一个平静的随机事件。")
@@ -456,12 +459,14 @@ func setup_evolution(stage: int):
 		add_option(opt1.name + ": " + opt1.description, func():
 			GameManager.evolution_path = "A"
 			GameManager.player_deck.append(opt1.card.duplicate())
-			finish_event("核心进化！你选择了【" + opt1.name + "】，获得核心卡：【" + opt1.card.name + "】！")
+			GameManager.max_ap += 1
+			finish_event("核心进化！你选择了【" + opt1.name + "】，获得核心卡：【" + opt1.card.name + "】！最大 AP 提升至 %d。" % GameManager.max_ap)
 		)
 		add_option(opt2.name + ": " + opt2.description, func():
 			GameManager.evolution_path = "B"
 			GameManager.player_deck.append(opt2.card.duplicate())
-			finish_event("核心进化！你选择了【" + opt2.name + "】，获得核心卡：【" + opt2.card.name + "】！")
+			GameManager.max_ap += 1
+			finish_event("核心进化！你选择了【" + opt2.name + "】，获得核心卡：【" + opt2.card.name + "】！最大 AP 提升至 %d。" % GameManager.max_ap)
 		)
 		return
 
@@ -471,7 +476,8 @@ func setup_evolution(stage: int):
 		var opt = options["A"]
 		add_option(opt.name + ": " + opt.description, func():
 			GameManager.player_deck.append(opt.card.duplicate())
-			finish_event("终极进化完成！你获得终极卡：【" + opt.card.name + "】！")
+			GameManager.max_ap += 1
+			finish_event("终极进化完成！你获得终极卡：【" + opt.card.name + "】！最大 AP 提升至 %d。" % GameManager.max_ap)
 		)
 
 func setup_desk_organizing():
@@ -555,6 +561,15 @@ func _remove_random_card(count: int):
 		var idx = randi() % GameManager.player_deck.size()
 		GameManager.player_deck.remove_at(idx)
 
+func _remove_basic_card(count: int):
+	var basics = ["键盘输出", "摸鱼喝水", "小丑自嘲", "午后咖啡", "带薪拉屎", "工位补觉", "老板画饼", "极限跃动"]
+	for i in range(count):
+		var candidates = GameManager.player_deck.filter(func(c): return c.get("name", "") in basics)
+		if candidates.size() == 0:
+			return
+		var target = candidates[randi() % candidates.size()]
+		GameManager.player_deck.erase(target)
+
 func _remove_strong_card(count: int):
 	for i in range(count):
 		var candidates = GameManager.player_deck.filter(func(c): return c.get("cost", 0) >= 2 and not str(c.get("type", "")).begins_with("junk"))
@@ -564,6 +579,8 @@ func _remove_strong_card(count: int):
 			return
 		var target = candidates[randi() % candidates.size()]
 		GameManager.player_deck.erase(target)
+
+
 
 func _upgrade_random_card(count: int):
 	for i in range(count):

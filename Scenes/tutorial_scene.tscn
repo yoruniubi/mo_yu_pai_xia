@@ -40,6 +40,40 @@ corner_radius_bottom_left = 10
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mask"]
 bg_color = Color(0, 0, 0, 0.6)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_intent_bg"]
+bg_color = Color(0.15, 0.15, 0.15, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.4, 0.4, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0, 0, 0, 0.3)
+shadow_size = 4
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_intent_desc"]
+bg_color = Color(0.05, 0.05, 0.05, 0.7)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_intent_val"]
+bg_color = Color(0.8, 0.2, 0.2, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 15
+corner_radius_top_right = 15
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
+
 [node name="TutorialScene" type="Control"]
 layout_mode = 3
 anchors_preset = 15
@@ -114,13 +148,6 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 5
 alignment = 1
-
-[node name="IntentLabel" type="Label" parent="TopArea/EnemyInfo"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.843137, 0, 1)
-text = "意图：准备复制你的下一张牌"
-horizontal_alignment = 1
 
 [node name="MiddleArea" type="Control" parent="."]
 layout_mode = 1
@@ -280,6 +307,95 @@ grow_horizontal = 0
 grow_vertical = 2
 theme_override_font_sizes/font_size = 24
 text = "结束回合"
+
+[node name="IntentCard" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -200.0
+offset_top = 220.0
+offset_right = -20.0
+offset_bottom = 460.0
+grow_horizontal = 0
+
+[node name="Background" type="Panel" parent="IntentCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_intent_bg")
+
+[node name="VBox" type="VBoxContainer" parent="IntentCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 5.0
+offset_top = 5.0
+offset_right = -5.0
+offset_bottom = -5.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 2
+
+[node name="Title" type="Label" parent="IntentCard/VBox"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 16
+text = "下回合意图"
+horizontal_alignment = 1
+
+[node name="IntentIcon" type="Label" parent="IntentCard/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 56
+text = "⚔️"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DescriptionPanel" type="PanelContainer" parent="IntentCard/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_intent_desc")
+
+[node name="IntentDescription" type="Label" parent="IntentCard/VBox/DescriptionPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "效果描述"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="ValueContainer" type="Panel" parent="IntentCard"]
+layout_mode = 0
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 28.0
+offset_bottom = 28.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_intent_val")
+
+[node name="IntentText" type="Label" parent="IntentCard/ValueContainer"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 20
+text = "15"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="VictoryLayer" type="CanvasLayer" parent="."]
 unique_name_in_owner = true

@@ -102,6 +102,10 @@ func _ready():
 	
 	# 3. 初始化玩家 HP
 	hero_hp = GameManager.player_hp
+	if GameManager.current_level == 8:
+		hero_hp = GameManager.max_player_hp
+		GameManager.player_hp = hero_hp
+		spawn_floating_number("第8关备战：状态回满！", false, hero_sprite.global_position + Vector2(0, -120), Color.GREEN)
 	hero_hp_bar.max_value = GameManager.max_player_hp
 	hero_hp_bar.value = hero_hp
 	
@@ -495,6 +499,15 @@ func enemy_turn():
 		update_status_display()
 		await get_tree().create_timer(0.4).timeout
 
+	# 苏珊终极进化：黑名单逻辑
+	if has_meta("boss_blacklisted"):
+		var penalty = 20 # 基础违约金
+		apply_damage_to_enemy(penalty)
+		spawn_floating_number("违约金: %d" % penalty, false, %BossSprite.global_position, Color.BLACK)
+		await get_tree().create_timer(0.8).timeout
+		start_player_turn()
+		return
+
 	if has_meta("skip_next_intent"):
 		remove_meta("skip_next_intent")
 		intent_icon.text = "💤"
@@ -518,19 +531,17 @@ func enemy_turn():
 	await get_tree().create_timer(0.5).timeout
 	
 	# 根据敌人类型执行不同行为
-	if "鹦鹉" in enemy_name:
-		if not last_player_card_data.is_empty():
-			var type = last_player_card_data.get("type", "")
-			var val = last_player_card_data.get("value", 5)
-			print("鹦鹉复制了你的行为！")
-			if type == "attack" or type == "attack_draw" or type == "attack_fire" or type == "attack_seed":
-				apply_damage_to_hero(val * 1.5) # 鹦鹉复制伤害更高
-			elif type == "defense" or type == "defense_ink":
-				apply_damage_to_enemy(-val) # 相当于回血
-			else:
-				apply_damage_to_hero(15)
-		else:
-			apply_damage_to_hero(15)
+	if "审计" in enemy_name:
+		if compliance_violation_this_turn:
+			spawn_floating_number("审计未通过！", true, hero_sprite.global_position + Vector2(0, -100), Color.RED)
+			await get_tree().create_timer(0.6).timeout
+		
+		apply_damage_to_hero(10 + enemy_damage_bonus)
+		print("审计猎犬发动了合规审查...")
+	elif "鹦鹉" in enemy_name:
+		# 鹦鹉机制已移至玩家回合开始时的“复读干扰”
+		apply_damage_to_hero(12 + enemy_damage_bonus)
+		print("鹦鹉发动了普通攻击...")
 	elif "刺猬" in enemy_name:
 		if hedgehog_turns_left <= 1:
 			if not hedgehog_combo_met:
@@ -550,14 +561,9 @@ func enemy_turn():
 		print("树懒塞入了垃圾卡...")
 		inject_junk_card("meeting")
 	elif "监控猿" in enemy_name:
-		apply_damage_to_hero(15 + enemy_damage_bonus)
-		# 锁定逻辑简化：随机弃掉一张手牌
-		if hand_cards.size() > 0:
-			var idx = randi() % hand_cards.size()
-			var c = hand_cards[idx]
-			hand_cards.remove_at(idx)
-			c.queue_free()
-			print("监控猿锁定了你的一张牌！")
+		# 监控猿机制在 check_combos 中实现锁定检测
+		apply_damage_to_hero(18 + enemy_damage_bonus)
+		print("监控猿正在严密监控...")
 	elif "蜘蛛" in enemy_name:
 		print("画饼蜘蛛发动了【虚假目标】！")
 		apply_damage_to_hero(20 + enemy_damage_bonus)
@@ -583,8 +589,8 @@ func enemy_turn():
 			spawn_floating_number("【羊态】：温水青蛙", false, %BossSprite.global_position + Vector2(0, -120), Color.WHITE)
 		else:
 			set_meta("ceo_state", "snake") # 蛇态：AP 封印
-			spawn_floating_number("【蛇态】：阴暗压榨", false, %BossSprite.global_position + Vector2(0, -120), Color.PURPLE)
-			next_turn_extra_ap -= 2
+			set_meta("ceo_snake_seal", true)
+			spawn_floating_number("【蛇态】：摸鱼力封印！", false, %BossSprite.global_position + Vector2(0, -120), Color.PURPLE)
 		
 		apply_damage_to_hero(35 + enemy_damage_bonus)
 		inject_junk_card("kpi")
@@ -672,6 +678,14 @@ func start_player_turn():
 	has_reflect_shield = false
 	
 	current_sequence.clear()
+	
+	if "鹦鹉" in enemy_name:
+		if not last_player_card_data.is_empty():
+			var last_emoji = last_player_card_data.get("emoji", "")
+			if last_emoji != "":
+				current_sequence.append(last_emoji)
+				spawn_floating_number("复读: %s" % last_emoji, false, %BossSprite.global_position + Vector2(0, -120), Color.GREEN)
+
 	update_emoji_slots()
 	enemy_vulnerability = 0 # 重置敌人易伤状态
 	
@@ -679,6 +693,11 @@ func start_player_turn():
 		current_ap = max(0, current_ap - GameManager.ap_drain_per_turn)
 	if GameManager.hp_drain_per_turn > 0:
 		apply_damage_to_hero(GameManager.hp_drain_per_turn)
+	
+	if has_meta("ceo_snake_seal"):
+		current_ap = 0
+		remove_meta("ceo_snake_seal")
+		spawn_floating_number("AP 被封印！", false, hero_sprite.global_position + Vector2(0, -100), Color.PURPLE)
 	
 	if has_meta("ceo_state"):
 		remove_meta("ceo_state")
@@ -899,6 +918,11 @@ func _on_card_played(card_node):
 	if "审计" in enemy_name_label.text:
 		_check_compliance_violation(GameManager.max_ap - current_ap)
 	
+	# 博姆终极进化：火伤翻倍逻辑
+	if _get_emoji_color_group(emoji) == "red" and has_meta("fire_multiplier"):
+		# 逻辑在 apply_damage_to_enemy 中处理
+		pass
+
 	# 垃圾卡也会进入弃牌堆以持续污染牌组
 	discard_pile.append(data)
 	
@@ -1044,13 +1068,16 @@ func check_combos():
 				spawn_floating_number("锁定失败", false, %BossSprite.global_position + Vector2(0, -120), Color.ORANGE)
 				return
 
-	if "蜘蛛" in enemy_name_label.text and not spider_shuffle_used and current_sequence.size() >= 2:
+	if "蜘蛛" in enemy_name_label.text and not spider_shuffle_used and current_sequence.size() == 3:
 		if randf() < 0.5:
 			current_sequence.shuffle()
 			spider_shuffle_used = true
 			update_emoji_slots()
-			spawn_floating_number("乱序!", false, %BossSprite.global_position + Vector2(0, -120), Color.ORANGE_RED)
-			return
+			spawn_floating_number("序列重组！", true, %BossSprite.global_position + Vector2(0, -120), Color.ORANGE_RED)
+			# 乱序后继续检查，看是否还能凑出连招
+			seq_counts.clear()
+			for e in current_sequence:
+				seq_counts[e] = seq_counts.get(e, 0) + 1
 	
 	for recipe_key in active_combos:
 		var combo = active_combos[recipe_key]
@@ -1585,17 +1612,68 @@ func execute_card_effect(data: Dictionary):
 			draw_card()
 			current_ap += value
 		"attack_debuff_atk_half":
-			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
+			apply_damage_to_enemy(value)
 			# 简化：降低老板下一击伤害
+
 			enemy_atk_reduction += 15 
 		"heal_vulnerability":
 			apply_heal_to_hero(value)
 			enemy_vulnerability += 5
+		"ultimate_fire_filter":
+			var discarded_count = 0
+			for i in range(hand_cards.size() - 1, -1, -1):
+				var c = hand_cards[i]
+				if _get_emoji_color_group(c.card_data.get("emoji", "")) != "red":
+					hand_cards.remove_at(i)
+					c.queue_free()
+					discarded_count += 1
+			update_hand_layout()
+			if discarded_count > 0:
+				if not has_meta("fire_multiplier"): set_meta("fire_multiplier", 1.0)
+				set_meta("fire_multiplier", get_meta("fire_multiplier") + discarded_count)
+				spawn_floating_number("FIRE BOOST x%d" % discarded_count, true, hero_sprite.global_position + Vector2(0, -100), Color.RED)
+		"ultimate_void":
+			var reduction = int(enemy_hp_bar.max_value * 0.2)
+			enemy_hp_bar.max_value -= reduction
+			enemy_hp = min(enemy_hp, enemy_hp_bar.max_value)
+			apply_heal_to_hero(reduction)
+			spawn_floating_number("VOID", true, %BossSprite.global_position, Color.PURPLE)
+		"ultimate_vision":
+			apply_damage_to_enemy(recorded_data_value)
+			cost_reduction_active = true
+			for c in hand_cards:
+				c.card_data["cost"] = 0
+				c.update_ui()
+			spawn_floating_number("VISIONARY", true, hero_sprite.global_position, Color.GOLD)
+		"ultimate_blacklist":
+			set_meta("boss_blacklisted", true)
+			intent_icon.text = "🚫"
+			intent_text.text = "已封印"
+			intent_description.text = "老板已被列入黑名单，无法行动且每回合受罚"
+			spawn_floating_number("BLACKLISTED", true, %BossSprite.global_position, Color.BLACK)
 
 func apply_damage_to_enemy(amount: int):
 	if is_battle_over: return
-	var final_dmg = amount
 	
+	# 增伤逻辑：打出的每张牌（或触发的伤害效果）都获得固定增伤
+	var final_dmg = amount
+	if amount > 0:
+		final_dmg += GameManager.attack_bonus_flat
+
+	# 审计猎犬逻辑：合规检测失败则伤害转回血
+
+
+	if compliance_violation_this_turn:
+		var heal_amount = int(amount * 0.5)
+		enemy_hp = min(enemy_hp_bar.max_value, enemy_hp + heal_amount)
+		spawn_floating_number("不合规：回血 %d" % heal_amount, false, %BossSprite.global_position, Color.GREEN)
+		update_ui_values()
+		return
+
+	# 博姆终极进化：火伤翻倍
+	if has_meta("fire_multiplier") and last_player_card_data.has("emoji") and _get_emoji_color_group(last_player_card_data.emoji) == "red":
+		final_dmg = int(final_dmg * get_meta("fire_multiplier"))
+
 	# CEO 羊态逻辑：单次伤害上限
 	if has_meta("ceo_state") and get_meta("ceo_state") == "sheep":
 		final_dmg = min(final_dmg, 10)
@@ -1607,12 +1685,6 @@ func apply_damage_to_enemy(amount: int):
 	if self.has_meta("perm_vulnerability"):
 		final_dmg += get_meta("perm_vulnerability")
 
-	if "审计" in enemy_name_label.text and compliance_violation_this_turn and final_dmg > 0:
-		enemy_hp = min(enemy_hp + final_dmg, enemy_hp_bar.max_value)
-		spawn_floating_number("退回", false, %BossSprite.global_position + Vector2(0, -120), Color.GREEN)
-		update_ui_values()
-		return
-		
 	enemy_hp -= final_dmg
 	enemy_hp = max(0, enemy_hp)
 	if "九头蛇" in enemy_name_label.text and final_dmg > 0:
@@ -1725,7 +1797,9 @@ func show_reward_selection():
 
 func apply_heal_to_hero(amount: int):
 	if poison_heal_inverted:
-		apply_damage_to_hero(amount)
+		# PUA 毒蛇优化：回血不再全额转伤害，改为回血失效并扣除 5 点固定压力
+		apply_damage_to_hero(5)
+		spawn_floating_number("PUA：拒绝回血", false, hero_sprite.global_position + Vector2(0, -100), Color.RED)
 		return
 	var final_heal = int(amount * GameManager.heal_multiplier)
 	hero_hp += final_heal
@@ -1749,9 +1823,9 @@ func _update_enemy_intent():
 	intent_description.text = ""
 	
 	if "鹦鹉" in enemy.name:
-		intent_icon.text = "📝"
-		intent_text.text = "复制"
-		intent_description.text = "模仿你上一张打出的卡牌效果"
+		intent_icon.text = "🦜"
+		intent_text.text = "复读"
+		intent_description.text = "锁定序列首位为上回合末尾符号"
 	elif "刺猬" in enemy.name:
 		intent_icon.text = "⏰"
 		intent_text.text = "4 x 3"
@@ -1767,10 +1841,10 @@ func _update_enemy_intent():
 			intent_description.text = "下回合将发布出牌限制规则"
 		elif compliance_rule.type == "ap_parity":
 			intent_text.text = "AP须%s" % ("偶数" if compliance_rule.value == "even" else "奇数")
-			intent_description.text = "违反规则将导致伤害转化为回血"
+			intent_description.text = "若结算时AP不合规，将扣除 15 点压力值"
 		else:
 			intent_text.text = "颜色≤%d" % compliance_rule.value
-			intent_description.text = "使用的Emoji颜色种类不能超过限制"
+			intent_description.text = "若使用的Emoji颜色超标，将扣除 15 点压力值"
 	elif "毒蛇" in enemy.name:
 		intent_icon.text = "🐍"
 		intent_text.text = "认知反转"

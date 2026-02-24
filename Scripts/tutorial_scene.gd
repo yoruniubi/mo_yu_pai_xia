@@ -6,7 +6,10 @@ extends Control
 @onready var hero_hp_bar = %HeroHPBar
 @onready var enemy_name_label = %EnemyName
 @onready var enemy_hp_bar = %EnemyHPBar
-@onready var intent_label = %IntentLabel
+@onready var intent_card = %IntentCard
+@onready var intent_icon = %IntentIcon
+@onready var intent_text = %IntentText
+@onready var intent_description = %IntentDescription
 @onready var energy_label = %EnergyLabel
 @onready var hand_container = %HandContainer
 @onready var end_turn_button = %EndTurnButton
@@ -91,6 +94,7 @@ func _ready():
 	_setup_tutorial_highlight_targets()
 	_setup_mask_material()
 	_update_ui_values()
+	_update_enemy_intent()
 	
 	tutorial_layer.visible = true
 	mask.show()
@@ -157,7 +161,7 @@ func _show_step(index):
 		"enemy_hp":
 			_focus_ui(enemy_hp_bar.global_position + Vector2(200, 40), "👆")
 		"intent":
-			_focus_ui(intent_label.global_position + Vector2(100, 40), "👆")
+			_focus_ui(intent_card.global_position + Vector2(100, 120), "👆")
 		"enemy_status":
 			_focus_ui(enemy_status_container.global_position + Vector2(50, 40), "👆")
 		"hero_hp":
@@ -199,7 +203,7 @@ func _on_tutorial_finished():
 func _setup_tutorial_highlight_targets() -> void:
 	highlight_targets = {
 		"enemy_hp": enemy_hp_bar,
-		"intent": intent_label,
+		"intent": intent_card,
 		"enemy_status": enemy_status_container,
 		"hero_hp": hero_hp_bar,
 		"hero_status": status_container,
@@ -344,6 +348,11 @@ func _update_ui_values():
 	_ensure_hp_label(hero_hp_bar, "HeroHpValueLabel", hero_hp, Color.WHITE)
 	_ensure_hp_label(enemy_hp_bar, "EnemyHpValueLabel", enemy_hp, Color.WHITE)
 	energy_label.text = "摸鱼力: %d/3" % current_ap
+
+func _update_enemy_intent():
+	intent_icon.text = "📝"
+	intent_text.text = "复制"
+	intent_description.text = "模仿你上一张打出的卡牌效果"
 
 func _ensure_hp_label(bar: ProgressBar, label_name: String, value: int, color: Color) -> void:
 	var label = bar.get_node_or_null(label_name)

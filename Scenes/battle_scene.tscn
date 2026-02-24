@@ -359,10 +359,10 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -160.0
-offset_top = 160.0
+offset_left = -200.0
+offset_top = 220.0
 offset_right = -20.0
-offset_bottom = 300.0
+offset_bottom = 460.0
 grow_horizontal = 0
 
 [node name="Background" type="Panel" parent="IntentCard"]
@@ -391,7 +391,7 @@ theme_override_constants/separation = 2
 layout_mode = 2
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 2
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 text = "下回合意图"
 horizontal_alignment = 1
 
@@ -399,7 +399,7 @@ horizontal_alignment = 1
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_font_sizes/font_size = 40
+theme_override_font_sizes/font_size = 56
 text = "⚔️"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -413,7 +413,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_intent_desc")
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "效果描述"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -421,10 +421,10 @@ autowrap_mode = 3
 
 [node name="ValueContainer" type="Panel" parent="IntentCard"]
 layout_mode = 0
-offset_left = -8.0
-offset_top = -8.0
-offset_right = 22.0
-offset_bottom = 22.0
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 28.0
+offset_bottom = 28.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_intent_val")
 
 [node name="IntentText" type="Label" parent="IntentCard/ValueContainer"]
@@ -437,7 +437,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 20
 text = "15"
 horizontal_alignment = 1
 vertical_alignment = 1

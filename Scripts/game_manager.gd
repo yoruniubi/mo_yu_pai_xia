@@ -13,12 +13,16 @@ var is_tutorial_mode: bool = false
 var current_level: int = 1
 var max_levels: int = 10
 var evolution_path: String = "" 
-var max_ap: int = 4 # 全局最大 AP
+var max_ap: int = 3 # 全局最大 AP
 var pending_event_id: String = ""
 var pending_random_event_id: String = ""
+var last_random_event_id: String = ""
 var last_battle_level: int = 0
 var next_battle_ap_bonus: int = 0
+var next_battle_extra_draws: int = 0
 var next_battle_damage_multiplier: float = 1.0
+
+
 var next_battle_enemy_damage_bonus: int = 0
 var start_battle_burst_damage: int = 0
 var start_battle_discard_random_hand: bool = false
@@ -29,7 +33,7 @@ var attack_bonus_flat: int = 0
 var ap_drain_per_turn: int = 0
 var hp_drain_per_turn: int = 0
 var skip_next_battle: bool = false
-
+ 
 func _ready():
 	# 自动适配屏幕拉伸
 	get_window().min_size = Vector2i(360, 640)
@@ -57,13 +61,16 @@ func reset_run():
 	player_hp = 120
 	max_player_hp = 120
 	current_level = 1
-	max_ap = 4
+	max_ap = 3
 	evolution_path = ""
 	pending_event_id = ""
 	pending_random_event_id = ""
+	last_random_event_id = ""
 	last_battle_level = 0
 	next_battle_ap_bonus = 0
+	next_battle_extra_draws = 0
 	next_battle_damage_multiplier = 1.0
+
 	next_battle_enemy_damage_bonus = 0
 	start_battle_burst_damage = 0
 	start_battle_discard_random_hand = false
@@ -279,7 +286,14 @@ func _get_random_event_id() -> String:
 	if keys.size() == 0:
 		return ""
 	keys.shuffle()
-	return keys[0]
+	if last_random_event_id != "" and keys.size() > 1:
+		keys = keys.filter(func(k): return k != last_random_event_id)
+		if keys.size() == 0:
+			keys = random_events.keys()
+			keys.shuffle()
+	var chosen = keys[0]
+	last_random_event_id = chosen
+	return chosen
 
 func _should_trigger_event_after_level(level: int) -> bool:
 	return _get_event_id_after_level(level) != ""
