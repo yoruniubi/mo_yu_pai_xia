@@ -188,10 +188,12 @@ func setup_random_event(event_id: String):
 
 	match event_id:
 		"pantry_gossip":
-			add_option("[听听看] 揭示下关敌人意图", func():
-				var next_enemy = GameManager.enemies_data.get(GameManager.current_level + 1, {})
-				var intent = next_enemy.get("intent", "未知意图")
-				finish_event("你偷听到了：%s" % intent)
+			add_option("[听听看] 获得随机卡，下一战 AP +1", func():
+				var rewards = GameManager.get_random_reward_cards(1)
+				if rewards.size() > 0:
+					GameManager.player_deck.append(rewards[0])
+				GameManager.next_battle_ap_bonus += 1
+				finish_event("你听到了猛料，顺手学了一招，下一战 AP +1。")
 			)
 			add_option("[走开] 回复 15 压力", func():
 				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 15)

@@ -329,6 +329,18 @@ func _get_monkey_lock_requirement() -> Dictionary:
 func _matches_lock_requirement(emoji: String) -> bool:
 	return _get_emoji_color_group(emoji) == monkey_locked_group
 
+func _get_monkey_requirement_label() -> String:
+	match monkey_locked_group:
+		"red":
+			return "🔥"
+		"blue":
+			return "💧"
+		"yellow":
+			return "📊"
+		"white":
+			return "⚪"
+	return "?"
+
 func hedgehog_init():
 	hedgehog_turns_left = 3
 	hedgehog_combo_met = false
@@ -661,6 +673,7 @@ func start_player_turn():
 		var lock = _get_monkey_lock_requirement()
 		monkey_locked_group = lock.group
 		monkey_locked_slot = randi() % 3
+		_update_enemy_intent()
 	
 	# 处理多回合状态
 	if has_meta("evasion_turns"):
@@ -1049,6 +1062,43 @@ func _add_status_badge(container: Control, text: String, color: Color, p_tooltip
 func update_emoji_slots():
 	for child in %EmojiSlot.get_children():
 		child.queue_free()
+	if "监控猿" in enemy_name_label.text and monkey_locked_slot >= 0:
+		for i in range(3):
+			var panel = PanelContainer.new()
+			panel.custom_minimum_size = Vector2(54, 54)
+			var style = StyleBoxFlat.new()
+			style.set_corner_radius_all(8)
+			if i == monkey_locked_slot:
+				style.bg_color = Color(1, 0.85, 0.4, 0.35)
+				style.border_width_left = 2
+				style.border_width_right = 2
+				style.border_width_top = 2
+				style.border_width_bottom = 2
+				style.border_color = Color(1, 0.6, 0.1)
+				panel.tooltip_text = "监控要求：%s" % _get_monkey_requirement_label()
+			else:
+				style.bg_color = Color(0, 0, 0, 0.12)
+			panel.add_theme_stylebox_override("panel", style)
+
+			var label = Label.new()
+			label.text = current_sequence[i] if i < current_sequence.size() else ""
+			label.custom_minimum_size = Vector2(54, 54)
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			label.add_theme_font_size_override("font_size", 32)
+			panel.add_child(label)
+
+			if i == monkey_locked_slot:
+				var req_label = Label.new()
+				req_label.text = _get_monkey_requirement_label()
+				req_label.add_theme_font_size_override("font_size", 18)
+				req_label.add_theme_color_override("font_color", Color.ORANGE)
+				req_label.position = Vector2(34, 0)
+				panel.add_child(req_label)
+
+			%EmojiSlot.add_child(panel)
+		return
+
 	for emoji in current_sequence:
 		var label = Label.new()
 		label.text = emoji
@@ -1853,10 +1903,10 @@ func _update_enemy_intent():
 			intent_description.text = "下回合将发布出牌限制规则"
 		elif compliance_rule.type == "ap_parity":
 			intent_text.text = "AP须%s" % ("偶数" if compliance_rule.value == "even" else "奇数")
-			intent_description.text = "若结算时AP不合规，将扣除 15 点压力值"
+			intent_description.text = "不合规：本回合伤害转为 50% 回血"
 		else:
 			intent_text.text = "颜色≤%d" % compliance_rule.value
-			intent_description.text = "若使用的Emoji颜色超标，将扣除 15 点压力值"
+			intent_description.text = "不合规：本回合伤害转为 50% 回血"
 	elif "毒蛇" in enemy.name:
 		intent_icon.text = "🐍"
 		intent_text.text = "认知反转"
@@ -1868,12 +1918,7 @@ func _update_enemy_intent():
 	elif "监控猿" in enemy.name:
 		intent_icon.text = "👁️"
 		var slot_text = "第%d格" % (monkey_locked_slot + 1) if monkey_locked_slot >= 0 else "随机"
-		var req_text = "?"
-		match monkey_locked_group:
-			"red": req_text = "🔥"
-			"blue": req_text = "💧"
-			"yellow": req_text = "📊"
-			"white": req_text = "⚪"
+		var req_text = _get_monkey_requirement_label()
 		intent_text.text = "%s=%s" % [slot_text, req_text]
 		intent_description.text = "指定位置必须填入指定类型Emoji"
 	elif "蜘蛛" in enemy.name:
