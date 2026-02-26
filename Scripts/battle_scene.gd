@@ -60,6 +60,7 @@ var save_hand_this_turn = false # 存档效果
 var ap_multiplier_next_turn = 1.0 # 全线崩溃效果
 var compliance_rule: Dictionary = {}
 var compliance_violation_this_turn = false
+var compliance_ap_spent_this_turn = 0
 var raccoon_steal_ready = false
 var poison_heal_inverted = false
 var hydra_heads = 3
@@ -290,13 +291,15 @@ func _roll_compliance_rule():
 		compliance_rule = {"type": "emoji_colors", "value": 2}
 	compliance_violation_this_turn = false
 
-func _check_compliance_violation(total_ap_used: int):
+func _check_compliance_violation():
 	if compliance_rule.is_empty():
 		return
 	if compliance_rule.type == "ap_parity":
-		var is_even = total_ap_used % 2 == 0
+		var is_even = compliance_ap_spent_this_turn % 2 == 0
 		if (compliance_rule.value == "even" and not is_even) or (compliance_rule.value == "odd" and is_even):
 			compliance_violation_this_turn = true
+		else:
+			compliance_violation_this_turn = false
 	elif compliance_rule.type == "emoji_colors":
 		var colors = {}
 		for card_data in cards_played_this_turn:
@@ -304,9 +307,14 @@ func _check_compliance_violation(total_ap_used: int):
 			if emoji == "":
 				continue
 			var color = _get_emoji_color_group(emoji)
+			# 中性色不计入“颜色种类”限制，避免误判
+			if color == "white":
+				continue
 			colors[color] = true
 		if colors.keys().size() > compliance_rule.value:
 			compliance_violation_this_turn = true
+		else:
+			compliance_violation_this_turn = false
 
 func _get_emoji_color_group(emoji: String) -> String:
 	if emoji in ["🔥", "💣", "🧨", "🌋"]:
@@ -545,10 +553,11 @@ func enemy_turn():
 	# 根据敌人类型执行不同行为
 	if "审计" in enemy_name:
 		if compliance_violation_this_turn:
-			spawn_floating_number("审计未通过！", true, hero_sprite.global_position + Vector2(0, -100), Color.RED)
+			spawn_floating_number("审计未通过：追加追责", true, hero_sprite.global_position + Vector2(0, -100), Color.RED)
 			await get_tree().create_timer(0.6).timeout
-		
-		apply_damage_to_hero(10 + enemy_damage_bonus)
+			apply_damage_to_hero(16 + enemy_damage_bonus)
+		else:
+			apply_damage_to_hero(10 + enemy_damage_bonus)
 		print("审计猎犬发动了合规审查...")
 	elif "鹦鹉" in enemy_name:
 		# 鹦鹉机制已移至玩家回合开始时的“复读干扰”
@@ -649,6 +658,7 @@ func start_player_turn():
 	ap_multiplier_next_turn = 1.0
 	poop_played_this_turn = false
 	cards_played_this_turn.clear()
+	compliance_ap_spent_this_turn = 0
 	cost_reduction_active = false
 	compliance_violation_this_turn = false
 	raccoon_steal_ready = false
@@ -903,6 +913,7 @@ func _on_card_played(card_node):
 		return
 	
 	current_ap -= cost
+	compliance_ap_spent_this_turn += cost
 	if %AnimationManager.has_method("play_player_attack_anim"):
 		var content = emoji
 		if content == "" and data.has("image"):
@@ -929,7 +940,7 @@ func _on_card_played(card_node):
 	cards_played_this_turn.append(data)
 
 	if "审计" in enemy_name_label.text:
-		_check_compliance_violation(GameManager.max_ap - current_ap)
+		_check_compliance_violation()
 	
 	# 博姆终极进化：火伤翻倍逻辑
 	if _get_emoji_color_group(emoji) == "red" and has_meta("fire_multiplier"):
@@ -1722,15 +1733,7 @@ func apply_damage_to_enemy(amount: int):
 	if amount > 0:
 		final_dmg += GameManager.attack_bonus_flat
 
-	# 审计猎犬逻辑：合规检测失败则伤害转回血
-
-
-	if compliance_violation_this_turn:
-		var heal_amount = int(amount * 0.5)
-		enemy_hp = min(enemy_hp_bar.max_value, enemy_hp + heal_amount)
-		spawn_floating_number("不合规：回血 %d" % heal_amount, false, %BossSprite.global_position, Color.GREEN)
-		update_ui_values()
-		return
+	# 审计猎犬改版：不再把玩家伤害转为回血（避免挫败感）
 
 	# 博姆终极进化：火伤翻倍
 	if has_meta("fire_multiplier") and last_player_card_data.has("emoji") and _get_emoji_color_group(last_player_card_data.emoji) == "red":
@@ -1903,10 +1906,10 @@ func _update_enemy_intent():
 			intent_description.text = "下回合将发布出牌限制规则"
 		elif compliance_rule.type == "ap_parity":
 			intent_text.text = "AP须%s" % ("偶数" if compliance_rule.value == "even" else "奇数")
-			intent_description.text = "不合规：本回合伤害转为 50% 回血"
+			intent_description.text = "不合规：老板回合追加 6 点伤害"
 		else:
 			intent_text.text = "颜色≤%d" % compliance_rule.value
-			intent_description.text = "不合规：本回合伤害转为 50% 回血"
+			intent_description.text = "不合规：老板回合追加 6 点伤害（白色不计）"
 	elif "毒蛇" in enemy.name:
 		intent_icon.text = "🐍"
 		intent_text.text = "认知反转"
