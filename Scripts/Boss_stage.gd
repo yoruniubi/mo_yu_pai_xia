@@ -59,6 +59,10 @@ var cost_reduction_active = false # 团建干杯效果
 var save_hand_this_turn = false # 存档效果
 var ap_multiplier_next_turn = 1.0 # 全线崩溃效果
 var current_phase = 0 # 0: KPI, 1: Wolf, 2: Dream
+var enemy_damage_bonus = 0
+var player_damage_multiplier = 1.0
+var battle_ap_bonus_applied = false
+var first_card_free_used = false
 
 # 当前激活的连招池
 var active_combos = {}
@@ -102,6 +106,12 @@ func _ready() -> void:
 	# 初始 AP
 	current_ap = GameManager.max_ap
 	
+	# 事件影响（与普通战斗保持一致）
+	enemy_damage_bonus = GameManager.next_battle_enemy_damage_bonus
+	player_damage_multiplier = GameManager.next_battle_damage_multiplier
+	GameManager.next_battle_enemy_damage_bonus = 0
+	GameManager.next_battle_damage_multiplier = 1.0
+	
 	# 5. 初始化数值 UI
 	update_ui_values()
 	update_status_display()
@@ -116,6 +126,26 @@ func _ready() -> void:
 	# 6. 初始抽牌
 	for i in range(5):
 		draw_card()
+
+	# 7. 添加牌库按钮（与普通战斗一致）
+	_setup_battle_ui_buttons()
+
+func _setup_battle_ui_buttons():
+	var deck_btn = Button.new()
+	deck_btn.text = " 🗃️ 查看牌库 "
+	deck_btn.name = "DeckButton"
+	var style_deck = _create_style("#fdf5e6", 15, 2)
+	deck_btn.add_theme_stylebox_override("normal", style_deck)
+	deck_btn.add_theme_stylebox_override("hover", _create_style("#8fb9aa", 15, 4))
+	deck_btn.add_theme_stylebox_override("pressed", _create_style("#7aa899", 15, 0))
+	deck_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	deck_btn.focus_mode = Control.FOCUS_NONE
+	deck_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+	deck_btn.add_theme_font_size_override("font_size", 20)
+	deck_btn.position = Vector2(12, 65)
+	deck_btn.custom_minimum_size = Vector2(150, 44)
+	add_child(deck_btn)
+	deck_btn.pressed.connect(func(): GameManager.show_deck_viewer(self))
 
 func setup_button_style():
 	var style_normal = _create_style("#4a4a4a", 10, 4)
@@ -300,6 +330,10 @@ func _on_card_played(card_node):
 	var emoji = data.get("emoji", "")
 	if has_kpi and emoji != "" and _is_emoji_part_of_any_combo(emoji):
 		cost += 1
+
+	if GameManager.first_card_free and not first_card_free_used:
+		cost = 0
+		first_card_free_used = true
 	
 	if current_ap < cost:
 		var t = create_tween()
@@ -634,22 +668,26 @@ func execute_card_effect(data: Dictionary):
 func apply_damage_to_enemy(amount: int):
 	if is_battle_over: return
 	var final_dmg = amount
+	if amount > 0:
+		final_dmg += GameManager.attack_bonus_flat
 	if enemy_vulnerability > 0:
 		final_dmg += enemy_vulnerability
 	if self.has_meta("perm_vulnerability"):
 		final_dmg += get_meta("perm_vulnerability")
+	if final_dmg > 0:
+		final_dmg = int(final_dmg * player_damage_multiplier)
 		
 	enemy_hp -= final_dmg
 	enemy_hp = max(0, enemy_hp)
 	last_damage_dealt = final_dmg
-	print("对 BOSS 造成 %d 点伤害" % amount)
+	print("对 BOSS 造成 %d 点伤害" % final_dmg)
 	
 	# 播放敌人受击动画
 	if %BossSprite.has_method("play_hit"):
 		%BossSprite.play_hit()
 	
 	# 显示伤害数字
-	spawn_floating_number(amount, amount > 20, %BossSprite.global_position)
+	spawn_floating_number(final_dmg, final_dmg > 20, %BossSprite.global_position)
 	
 	if enemy_hp <= 0:
 		show_ending()
@@ -663,7 +701,19 @@ func show_ending():
 	)
 
 func _on_back_to_menu_pressed():
-	get_tree().change_scene_to_file("res://Scenes/main_menu.tscn")
+	var dialog = ConfirmationDialog.new()
+	dialog.title = "确认放弃？"
+	dialog.dialog_text = "当前的离职进度将会丢失，确定要返回主菜单吗？"
+	dialog.ok_button_text = "确定"
+	dialog.cancel_button_text = "点错了"
+	dialog.get_label().add_theme_font_size_override("font_size", 24)
+	dialog.get_ok_button().add_theme_font_size_override("font_size", 22)
+	dialog.get_cancel_button().add_theme_font_size_override("font_size", 22)
+	add_child(dialog)
+	dialog.popup_centered()
+	dialog.confirmed.connect(func():
+		get_tree().change_scene_to_file("res://Scenes/main_menu.tscn")
+	)
 
 func _on_restart_pressed():
 	GameManager.is_tutorial_mode = false
@@ -671,44 +721,50 @@ func _on_restart_pressed():
 	GameManager.load_current_level_scene()
 
 func _style_resignation_bar(bar: ProgressBar):
-	# 背景样式：深奶油色底座，更有厚度感
+	bar.custom_minimum_size.y = 40
+	bar.show_percentage = false
+
+	# 背景：奶油色，带圆角和阴影
 	var sb_bg = StyleBoxFlat.new()
 	sb_bg.bg_color = Color("#dcd8c0") 
-	sb_bg.set_corner_radius_all(12)
-	sb_bg.expand_margin_top = 6
-	sb_bg.expand_margin_bottom = 6
-	sb_bg.border_width_left = 2
-	sb_bg.border_width_top = 2
-	sb_bg.border_width_right = 2
-	sb_bg.border_width_bottom = 2
-	sb_bg.border_color = Color("#c5c0a5")
+	sb_bg.set_corner_radius_all(20)
+	sb_bg.shadow_color = Color(0, 0, 0, 0.1)
+	sb_bg.shadow_size = 4
+	sb_bg.shadow_offset = Vector2(0, 2)
 	bar.add_theme_stylebox_override("background", sb_bg)
 	
-	# 填充样式：Boss战特有的金绿色渐变质感
+	# 进度：清新绿
 	var sb_fg = StyleBoxFlat.new()
-	sb_fg.bg_color = Color("#ffd700") # 金色，强调终局
-	sb_fg.set_corner_radius_all(10)
-	sb_fg.border_width_right = 4
-	sb_fg.border_color = Color("#b8860b") # 暗金色边
+	sb_fg.bg_color = Color("#8fb9aa") 
+	sb_fg.set_corner_radius_all(20)
 	bar.add_theme_stylebox_override("fill", sb_fg)
 	
-	# 文字标签优化：增加描边使其更清晰
+	# 文字标签：与 battle_scene 一致
 	if bar.has_node("ResignationLabel"):
 		var label = bar.get_node("ResignationLabel")
 		label.add_theme_color_override("font_color", Color("#3d3d3d"))
-		label.add_theme_font_size_override("font_size", 20)
-		label.add_theme_constant_override("outline_size", 3)
+		label.add_theme_font_size_override("font_size", 18)
+		label.add_theme_constant_override("outline_size", 2)
 		label.add_theme_color_override("font_outline_color", Color.WHITE)
-		label.text = "🔥 最终决战: %d / 10 🏁" % GameManager.current_level
+		label.text = "🏃 离职进度: %d / 10 🏁" % GameManager.current_level
+		label.anchor_left = 0
+		label.anchor_top = 0
+		label.anchor_right = 1
+		label.anchor_bottom = 1
+		label.offset_left = 0
+		label.offset_top = 0
+		label.offset_right = 0
+		label.offset_bottom = 0
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 func apply_heal_to_hero(amount: int):
-	# 传统回血
-	hero_hp += amount
+	# 传统回血（与 battle_scene 一致，支持全局治疗倍率）
+	var final_heal = int(amount * GameManager.heal_multiplier)
+	hero_hp += final_heal
 	hero_hp = min(GameManager.max_player_hp, hero_hp)
-	print("回复了 %d 点生命" % amount)
-	spawn_floating_number(amount, false, hero_sprite.global_position + Vector2(0, -50), Color.GREEN)
+	print("回复了 %d 点生命" % final_heal)
+	spawn_floating_number(final_heal, false, hero_sprite.global_position + Vector2(0, -50), Color.GREEN)
 	update_ui_values()
 	update_status_display()
 
@@ -975,9 +1031,27 @@ func show_combo_directory():
 	scroll.add_child(text)
 
 	var combo_text = "[b]--- 摸鱼连招秘籍 ---[/b]\n\n"
-	for recipe in active_combos:
-		var data = active_combos[recipe]
-		combo_text += "• [b]%s[/b]  %s\n    %s\n\n" % [recipe, data.name, data.effect]
+	var universal_keys = GameManager.universal_combos.keys()
+	var hero_keys: Array = []
+
+	if GameManager.selected_hero and GameManager.character_combos.has(GameManager.selected_hero.character_name):
+		hero_keys = GameManager.character_combos[GameManager.selected_hero.character_name].keys()
+
+	universal_keys.sort()
+	hero_keys.sort()
+
+	combo_text += "[color=#8fb9aa][b]通用连招[/b][/color]\n"
+	for recipe in universal_keys:
+		if active_combos.has(recipe):
+			var data = active_combos[recipe]
+			combo_text += "• [b]%s[/b]  %s\n    %s\n\n" % [recipe, data.name, data.effect]
+
+	if hero_keys.size() > 0:
+		combo_text += "[color=#ffb86c][b]角色专属连招[/b][/color]\n"
+		for recipe in hero_keys:
+			if active_combos.has(recipe):
+				var data = active_combos[recipe]
+				combo_text += "• [b]%s[/b]  %s\n    %s\n\n" % [recipe, data.name, data.effect]
 
 	text.text = combo_text
 	dialog.popup_centered_ratio(0.92 if is_mobile else 0.85)
@@ -1015,7 +1089,7 @@ func update_hand_layout():
 	var card_count = hand_cards.size()
 	if card_count == 0: return
 	var center_x = hand_container.size.x / 2.0
-	var base_y = hand_container.size.y - 100.0
+	var base_y = hand_container.size.y - 110.0
 	var total_angle = min(MAX_FAN_ANGLE, card_count * 10.0)
 	var angle_step = 0.0
 	if card_count > 1: angle_step = total_angle / (card_count - 1.0)
@@ -1086,21 +1160,21 @@ func enemy_turn():
 	match current_phase:
 		0: # KPI 考核
 			print("CEO 释放了【KPI 考核】！")
-			var dmg = max(0, 10 - enemy_atk_reduction) # 15 -> 10
+			var dmg = max(0, 10 + enemy_damage_bonus - enemy_atk_reduction) # 15 -> 10
 			apply_damage_to_hero(dmg)
 			inject_junk_card("kpi")
 		1: # 狼性文化
 			print("CEO 宣扬【狼性文化】！")
 			for i in range(4):
-				var dmg = max(0, 5 - enemy_atk_reduction) # 8 -> 5
+				var dmg = max(0, 5 + enemy_damage_bonus - enemy_atk_reduction) # 8 -> 5
 				apply_damage_to_hero(dmg)
 				await get_tree().create_timer(0.2).timeout
 		2: # 谈谈梦想
 			print("CEO 和你【谈谈梦想】！")
-			var dmg = max(0, 8 - enemy_atk_reduction) # 10 -> 8
+			var dmg = max(0, 8 + enemy_damage_bonus - enemy_atk_reduction) # 10 -> 8
 			apply_damage_to_hero(dmg)
 			enemy_hp += 30 # 40 -> 30
-			enemy_hp = min(500, enemy_hp)
+			enemy_hp = min(enemy_hp_bar.max_value, enemy_hp)
 			spawn_floating_number(30, false, %BossSprite.global_position, Color.GREEN)
 			update_ui_values()
 	
@@ -1142,6 +1216,8 @@ func inject_junk_card(type: String):
 	update_hand_layout()
 
 func show_game_over():
+	if is_battle_over: return
+	is_battle_over = true
 	end_turn_button.disabled = true
 	game_over_layer.visible = true
 
@@ -1150,7 +1226,12 @@ func start_player_turn():
 	end_turn_button.disabled = false
 	
 	# 1. 重置摸鱼力 (同步 battle_scene 的 AP 计算逻辑)
-	current_ap = int((GameManager.max_ap + next_turn_extra_ap) * ap_multiplier_next_turn)
+	var base_ap = GameManager.max_ap
+	if not battle_ap_bonus_applied:
+		base_ap += GameManager.next_battle_ap_bonus
+		battle_ap_bonus_applied = true
+		GameManager.next_battle_ap_bonus = 0
+	current_ap = int((base_ap + next_turn_extra_ap) * ap_multiplier_next_turn)
 	next_turn_extra_ap = 0
 	ap_multiplier_next_turn = 1.0
 	
@@ -1158,6 +1239,7 @@ func start_player_turn():
 	poop_played_this_turn = false
 	cards_played_this_turn.clear()
 	cost_reduction_active = false
+	first_card_free_used = false
 	
 	# 回合开始重置护盾
 	hero_shield = 0
@@ -1194,8 +1276,7 @@ func start_player_turn():
 				print("由于未打出虚假目标，本回合抽牌减少")
 				draw_count -= 1
 			# 回合结束手牌进弃牌堆
-			if not card.card_data.get("type", "").begins_with("junk"):
-				discard_pile.append(card.card_data)
+			discard_pile.append(card.card_data)
 		
 		# 4. 清空手牌
 		for card in hand_cards: card.queue_free()
