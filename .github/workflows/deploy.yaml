@@ -19,12 +19,12 @@ jobs:
         uses: firebelley/godot-export@v5.2.1
         with:
           godot_executable_download_url: https://godot-releases.nbg1.your-objectstorage.com/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
-          godot_export_templates_download_url: https://godot-releases.nbg1.your-objectstorage.com/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          godot_export_templates_download_url: https://downloads.godotengine.org/?version=4.5.1&flavor=stable&slug=export_templates.tpz&platform=templates
           relative_project_path: ./
           archive_export_output: false
           # 必须匹配你 preset.2 的名字
           export_preset_name: Web
-          
+
       - name: Patch for GitHub Pages (SharedArrayBuffer)
         run: |
           # 1. 进入你配置的导出目录 web/
