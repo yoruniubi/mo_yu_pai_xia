@@ -24,11 +24,8 @@ jobs:
 
       - name: Godot Export (Manual Setup)
         run: |
-          # 0. 准备轻量 Emoji 字体（约 2MB 级，避免 20MB+ 彩色字体）
-          mkdir -p Assets/Fonts
-          wget -nv -O Assets/Fonts/EmojiSubset.ttf "https://raw.githubusercontent.com/googlefonts/noto-emoji/main/fonts/NotoEmoji-VariableFont_wght.ttf"
-
-          ls -lh Assets/Fonts/EmojiSubset.ttf
+          # 0. 使用仓库内置 Emoji 字体（OpenMoji-color-cbdt.ttf）
+          ls -lh Assets/Fonts/OpenMoji-color-cbdt.ttf
 
           # 1. 创建目录
           mkdir -p ~/.local/share/godot/export_templates/4.5.1.stable

@@ -49,12 +49,12 @@ func _setup_emoji_font_fallback() -> void:
 	if not OS.has_feature("web"):
 		return
 
-	# 优先使用 CI 生成的小体积 Emoji 子集字体，避免 Web 端乱码且控制包体
-	var emoji_subset_path: String = "res://Assets/Fonts/EmojiSubset.ttf"
-	if not FileAccess.file_exists(emoji_subset_path):
+	# Web 端优先使用仓库内置 OpenMoji 字体，避免系统字体缺失导致 Emoji 乱码
+	var emoji_font_path: String = "res://Assets/Fonts/OpenMoji-color-cbdt.ttf"
+	if not FileAccess.file_exists(emoji_font_path):
 		return
 
-	var emoji_font_res: Resource = load(emoji_subset_path)
+	var emoji_font_res: Resource = load(emoji_font_path)
 	if emoji_font_res == null:
 		return
 	if not (emoji_font_res is Font):
