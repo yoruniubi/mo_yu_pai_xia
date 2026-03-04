@@ -49,8 +49,8 @@ func _setup_emoji_font_fallback() -> void:
 	if not OS.has_feature("web"):
 		return
 
-	# Web 端使用轮廓字体 fallback，避免 CBDT 彩色字体在 Godot Web 下报 contours 错误
-	var emoji_font_path: String = "res://Assets/Fonts/WebEmojiFallback.ttf"
+	# Web 端使用项目内 Emoji 字体作为 fallback
+	var emoji_font_path: String = "res://Assets/Fonts/NotoEmoji-VariableFont_wght.ttf"
 	if not FileAccess.file_exists(emoji_font_path):
 		return
 
