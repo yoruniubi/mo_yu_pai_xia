@@ -1,5 +1,9 @@
 # 摸鱼牌侠（mo-yu-pai-xia）
 
+<p align="center">
+  <img src="studio_logo/game_icon.png" alt="摸鱼牌侠 icon" width="140" />
+</p>
+
 > 第一人称沉浸式职场 Roguelike 卡牌游戏。  
 > 用 Emoji 连招、核心进化和职场梗机制，把老板“喷飞”出屏幕。
 

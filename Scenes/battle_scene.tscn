@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://cwbhloxico20l"]
+[gd_scene load_steps=14 format=3 uid="uid://cwbhloxico20l"]
 
 [ext_resource type="Script" uid="uid://c64duea78mqqv" path="res://Scripts/battle_scene.gd" id="1_fw8re"]
 [ext_resource type="Texture2D" uid="uid://dbo6lx3u4s0ec" path="res://Assets/Images/parrot.png" id="2_hdvqd"]
@@ -179,7 +179,6 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 5
 alignment = 1
-
 
 [node name="MiddleArea" type="Control" parent="."]
 layout_mode = 1
