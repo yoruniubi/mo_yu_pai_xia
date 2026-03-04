@@ -1,7 +1,7 @@
 name: "Deploy Godot to GitHub Pages"
 on:
   push:
-    branches: [ main ] # 如果你的主分支叫 master，请改为 master
+    branches: [ main ]
 
 permissions:
   contents: write
@@ -15,6 +15,13 @@ jobs:
         with:
           lfs: true
 
+      # 关键步骤：在云端临时关闭 Android 和 Windows 预设的激活状态
+      # 这样 Godot 就不会因为找不到 Android SDK 而报错了
+      - name: Disable other presets for CI
+        run: |
+          sed -i '/name="Android"/,/runnable=true/s/runnable=true/runnable=false/' export_presets.cfg
+          sed -i '/name="Windows Desktop"/,/runnable=true/s/runnable=true/runnable=false/' export_presets.cfg
+
       - name: Godot Export
         uses: firebelley/godot-export@v5.2.1
         with:
@@ -22,24 +29,16 @@ jobs:
           godot_export_templates_download_url: https://downloads.godotengine.org/?version=4.5.1&flavor=stable&slug=export_templates.tpz&platform=templates
           relative_project_path: ./
           archive_export_output: false
-          # 必须匹配你 preset.2 的名字
           export_preset_name: Web
 
       - name: Patch for GitHub Pages (SharedArrayBuffer)
         run: |
-          # 1. 进入你配置的导出目录 web/
           cd web
-          
-          # 2. 下载补丁脚本
           wget https://raw.githubusercontent.com/gzuidhof/coi-serviceworker/master/coi-serviceworker.js
-          
-          # 3. 在 index.html 的 <script> 标签前插入引用
-          # 这一行会在生成的 HTML 中加入 <script src="coi-serviceworker.js"></script>
           sed -i 's|<script|<script src="coi-serviceworker.js"></script><script|' index.html
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          # 注意：根据你的配置，Godot 会把文件放在 web/ 目录下
           folder: web
           branch: gh-pages
