@@ -29,6 +29,10 @@ window/subwindows/embed_subwindows=false
 window/stretch/mode="canvas_items"
 window/handheld/orientation=1
 
+[gui]
+
+theme/custom_font="uid://tjq1vvu508mp"
+
 [input_devices]
 
 pointing/emulate_touch_from_mouse=true
