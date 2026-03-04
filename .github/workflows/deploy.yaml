@@ -22,14 +22,27 @@ jobs:
           sed -i '/name="Android"/,/runnable=true/s/runnable=true/runnable=false/' export_presets.cfg
           sed -i '/name="Windows Desktop"/,/runnable=true/s/runnable=true/runnable=false/' export_presets.cfg
 
-      - name: Godot Export
-        uses: firebelley/godot-export@v5.2.1
-        with:
-          godot_executable_download_url: https://godot-releases.nbg1.your-objectstorage.com/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
-          godot_export_templates_download_url: https://godot-releases.nbg1.your-objectstorage.com/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
-          relative_project_path: ./
-          archive_export_output: false
-          export_preset_name: Web
+      - name: Godot Export (Manual Setup)
+        run: |
+          # 1. 创建目录
+          mkdir -p ~/.local/share/godot/export_templates/4.5.1.stable
+          mkdir -p web
+
+          # 2. 下载 (使用你确认成功的 URL)
+          wget -nv https://godot-releases.nbg1.your-objectstorage.com/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+          wget -nv https://godot-releases.nbg1.your-objectstorage.com/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+
+          # 3. 解压 Godot 可执行文件
+          unzip Godot_v4.5.1-stable_linux.x86_64.zip
+          chmod +x Godot_v4.5.1-stable_linux.x86_64
+
+          # 4. 解压模板 (使用 || true 强制忽略那个多余字节的报错)
+          unzip Godot_v4.5.1-stable_export_templates.tpz -d ~/.local/share/godot/export_templates/4.5.1.stable || true
+          # 将解压出来的内容移到正确的位置 (模板内部通常包裹一层 templates/ 文件夹)
+          mv ~/.local/share/godot/export_templates/4.5.1.stable/templates/* ~/.local/share/godot/export_templates/4.5.1.stable/
+
+          # 5. 执行导出 (明确指定 Web 预设)
+          ./Godot_v4.5.1-stable_linux.x86_64 --headless --path . --export-release "Web" web/index.html
 
       - name: Patch for GitHub Pages (SharedArrayBuffer)
         run: |
