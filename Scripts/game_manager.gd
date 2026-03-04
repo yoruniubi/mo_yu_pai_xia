@@ -61,6 +61,8 @@ func _setup_emoji_font_fallback() -> void:
 		return
 
 	var emoji_font: Font = emoji_font_res as Font
+	_attach_emoji_font_to_main_font(emoji_font)
+
 	if ThemeDB.fallback_font == null:
 		ThemeDB.fallback_font = emoji_font
 		return
@@ -69,6 +71,20 @@ func _setup_emoji_font_fallback() -> void:
 	if not existing_fallbacks.has(emoji_font):
 		existing_fallbacks.append(emoji_font)
 		ThemeDB.fallback_font.fallbacks = existing_fallbacks
+
+func _attach_emoji_font_to_main_font(emoji_font: Font) -> void:
+	# 项目设置里用了 theme/custom_font，需把 emoji fallback 直接挂到主字体上
+	var main_font_res: Resource = load("res://Assets/Fonts/SmileySans-Oblique.ttf")
+	if main_font_res == null:
+		return
+	if not (main_font_res is Font):
+		return
+
+	var main_font: Font = main_font_res as Font
+	var main_fallbacks: Array = main_font.fallbacks
+	if not main_fallbacks.has(emoji_font):
+		main_fallbacks.append(emoji_font)
+		main_font.fallbacks = main_fallbacks
 
 func _input(event):
 	# PC端全屏快捷键 (F11)
