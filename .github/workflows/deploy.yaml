@@ -26,7 +26,7 @@ jobs:
         run: |
           # 0. 准备轻量 Emoji 字体（约 2MB 级，避免 20MB+ 彩色字体）
           mkdir -p Assets/Fonts
-          wget -nv -O Assets/Fonts/EmojiSubset.ttf "https://raw.githubusercontent.com/googlefonts/noto-emoji/main/fonts/NotoEmoji%5Bwght%5D.ttf"
+          wget -nv -O Assets/Fonts/EmojiSubset.ttf "https://raw.githubusercontent.com/googlefonts/noto-emoji/main/fonts/NotoEmoji-VariableFont_wght.ttf"
 
           ls -lh Assets/Fonts/EmojiSubset.ttf
 
