@@ -49,8 +49,8 @@ func _setup_emoji_font_fallback() -> void:
 	if not OS.has_feature("web"):
 		return
 
-	# Web 端优先使用仓库内置 OpenMoji 字体，避免系统字体缺失导致 Emoji 乱码
-	var emoji_font_path: String = "res://Assets/Fonts/OpenMoji-color-cbdt.ttf"
+	# Web 端使用轮廓字体 fallback，避免 CBDT 彩色字体在 Godot Web 下报 contours 错误
+	var emoji_font_path: String = "res://Assets/Fonts/WebEmojiFallback.ttf"
 	if not FileAccess.file_exists(emoji_font_path):
 		return
 

@@ -24,8 +24,9 @@ jobs:
 
       - name: Godot Export (Manual Setup)
         run: |
-          # 0. 使用仓库内置 Emoji 字体（OpenMoji-color-cbdt.ttf）
-          ls -lh Assets/Fonts/OpenMoji-color-cbdt.ttf
+          # 0. 使用仓库内已提交的 WebEmojiFallback.ttf
+          test -f Assets/Fonts/WebEmojiFallback.ttf
+          ls -lh Assets/Fonts/WebEmojiFallback.ttf
 
           # 1. 创建目录
           mkdir -p ~/.local/share/godot/export_templates/4.5.1.stable
@@ -46,12 +47,6 @@ jobs:
 
           # 5. 执行导出 (明确指定 Web 预设)
           ./Godot_v4.5.1-stable_linux.x86_64 --headless --path . --export-release "Web" web/index.html
-
-      - name: Patch for GitHub Pages (SharedArrayBuffer)
-        run: |
-          cd web
-          wget https://raw.githubusercontent.com/gzuidhof/coi-serviceworker/master/coi-serviceworker.js
-          sed -i 's|<script|<script src="coi-serviceworker.js"></script><script|' index.html
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
