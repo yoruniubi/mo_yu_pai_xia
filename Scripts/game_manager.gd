@@ -35,6 +35,7 @@ var hp_drain_per_turn: int = 0
 var skip_next_battle: bool = false
  
 func _ready():
+	_setup_emoji_font_fallback()
 	# 自动适配屏幕拉伸
 	get_window().min_size = Vector2i(360, 640)
 	if OS.get_name() in ["Windows", "macOS", "Linux"]:
@@ -42,6 +43,32 @@ func _ready():
 		DisplayServer.window_set_title("摸鱼牌侠 - PC版")
 	if Engine.has_singleton("SettingsManager"):
 		SettingsManager.apply_settings()
+
+func _setup_emoji_font_fallback() -> void:
+	# 本地/桌面端优先走系统字体；仅 Web 端启用内置 Emoji 子集字体兜底
+	if not OS.has_feature("web"):
+		return
+
+	# 优先使用 CI 生成的小体积 Emoji 子集字体，避免 Web 端乱码且控制包体
+	var emoji_subset_path: String = "res://Assets/Fonts/EmojiSubset.ttf"
+	if not FileAccess.file_exists(emoji_subset_path):
+		return
+
+	var emoji_font_res: Resource = load(emoji_subset_path)
+	if emoji_font_res == null:
+		return
+	if not (emoji_font_res is Font):
+		return
+
+	var emoji_font: Font = emoji_font_res as Font
+	if ThemeDB.fallback_font == null:
+		ThemeDB.fallback_font = emoji_font
+		return
+
+	var existing_fallbacks: Array = ThemeDB.fallback_font.fallbacks
+	if not existing_fallbacks.has(emoji_font):
+		existing_fallbacks.append(emoji_font)
+		ThemeDB.fallback_font.fallbacks = existing_fallbacks
 
 func _input(event):
 	# PC端全屏快捷键 (F11)

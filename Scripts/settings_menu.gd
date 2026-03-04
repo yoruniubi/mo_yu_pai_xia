@@ -9,13 +9,7 @@ extends Control
 @onready var save_button = %SaveButton
 @onready var back_button = %BackButton
 
-var resolution_values := [
-	Vector2i(720, 1280),
-	Vector2i(900, 1600),
-	Vector2i(1080, 1920),
-	Vector2i(1280, 720),
-	Vector2i(1600, 900)
-]
+var resolution_values: Array = []
 
 func _ready() -> void:
 	_setup_style()
@@ -51,9 +45,14 @@ func _setup_style() -> void:
 	_apply_label_style($Panel)
 
 func _setup_options() -> void:
+	resolution_values = SettingsManager.get_available_resolutions()
 	resolution_option.clear()
+	var recommended = SettingsManager.get_recommended_resolution()
 	for res in resolution_values:
-		resolution_option.add_item("%d x %d" % [res.x, res.y])
+		var label = "%d x %d" % [res.x, res.y]
+		if res == recommended:
+			label += "（推荐）"
+		resolution_option.add_item(label)
 
 func _apply_button_style(button: Button, base: Color, hover: Color, pressed: Color) -> void:
 	var normal = _create_button_style(base)
@@ -210,7 +209,9 @@ func _load_settings() -> void:
 
 	var res_idx = resolution_values.find(cfg["resolution"])
 	if res_idx == -1:
-		res_idx = 0
+		res_idx = resolution_values.find(SettingsManager.get_recommended_resolution())
+		if res_idx == -1:
+			res_idx = 0
 	resolution_option.select(res_idx)
 
 	if OS.has_feature("mobile"):

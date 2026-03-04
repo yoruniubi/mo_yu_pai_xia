@@ -24,6 +24,35 @@ jobs:
 
       - name: Godot Export (Manual Setup)
         run: |
+          # 0. 构建轻量 Emoji 子集字体（避免直接打包 20MB+ 全量字体）
+          mkdir -p Assets/Fonts
+          python -m pip install --quiet fonttools
+          wget -nv -O /tmp/NotoColorEmoji.ttf https://raw.githubusercontent.com/googlefonts/noto-emoji/main/fonts/NotoColorEmoji.ttf
+
+          python - <<'PY'
+          from pathlib import Path
+
+          # 项目内实际用到的 Emoji（可按需继续补充）
+          emoji_text = "⌨️💧🛡️🤡☕💩💤🍞🏃💡👍📑🤝🔋📉📞🥪💻📅📁📣🛠️💼🖱️📧🏢🧘💰📄🥂💾🔌🧼📦📢🕸️🔥💣🧨🌋🐙💨🌊🌀📊📈❌📋⏳🚫🪐☀️"
+
+          uniq = []
+          for ch in emoji_text:
+              if ch not in uniq:
+                  uniq.append(ch)
+
+          Path("Assets/Fonts/emoji_subset_chars.txt").write_text("".join(uniq), encoding="utf-8")
+          PY
+
+          python -m fontTools.subset /tmp/NotoColorEmoji.ttf \
+            --output-file=Assets/Fonts/EmojiSubset.ttf \
+            --text-file=Assets/Fonts/emoji_subset_chars.txt \
+            --layout-features='*' \
+            --glyph-names --symbol-cmap --legacy-cmap \
+            --notdef-glyph --notdef-outline --recommended-glyphs \
+            --name-IDs='*' --name-legacy --name-languages='*'
+
+          ls -lh Assets/Fonts/EmojiSubset.ttf
+
           # 1. 创建目录
           mkdir -p ~/.local/share/godot/export_templates/4.5.1.stable
           mkdir -p web
