@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://bqtoif2te5n1x"
-path="res://.godot/imported/NotoEmoji-VariableFont_wght.ttf-473d9d5fee39c5ec194aff42ec868f4c.fontdata"
+uid="uid://bhc7ou8fh4crb"
+path="res://.godot/imported/twemoji.ttf-f9369d7c11cdeca95a966e46b6b67fc2.fontdata"
 
 [deps]
 
-source_file="res://Assets/Fonts/NotoEmoji-VariableFont_wght.ttf"
-dest_files=["res://.godot/imported/NotoEmoji-VariableFont_wght.ttf-473d9d5fee39c5ec194aff42ec868f4c.fontdata"]
+source_file="res://Assets/Fonts/twemoji.ttf"
+dest_files=["res://.godot/imported/twemoji.ttf-f9369d7c11cdeca95a966e46b6b67fc2.fontdata"]
 
 [params]
 
