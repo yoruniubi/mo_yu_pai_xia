@@ -25,9 +25,9 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates/4.5.1.stable
           mkdir -p web
 
-          # 2. 下载 (使用你确认成功的 URL)
-          wget -nv https://godot-releases.nbg1.your-objectstorage.com/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
-          wget -nv https://godot-releases.nbg1.your-objectstorage.com/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          # 2. 下载 (使用 curl，CI 下更稳)
+          curl -fL --retry 3 --retry-delay 2 -o Godot_v4.5.1-stable_linux.x86_64.zip https://godot-releases.nbg1.your-objectstorage.com/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+          curl -fL --retry 3 --retry-delay 2 -o Godot_v4.5.1-stable_export_templates.tpz https://godot-releases.nbg1.your-objectstorage.com/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
 
           # 3. 解压 Godot 可执行文件
           unzip Godot_v4.5.1-stable_linux.x86_64.zip
