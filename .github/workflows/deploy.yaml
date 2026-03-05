@@ -14,9 +14,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: true
-
-      # 关键步骤：在云端临时关闭 Android 和 Windows 预设的激活状态
-      # 这样 Godot 就不会因为找不到 Android SDK 而报错了
       - name: Disable other presets for CI
         run: |
           sed -i '/name="Android"/,/runnable=true/s/runnable=true/runnable=false/' export_presets.cfg
