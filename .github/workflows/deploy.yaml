@@ -24,10 +24,6 @@ jobs:
 
       - name: Godot Export (Manual Setup)
         run: |
-          # 0. 使用仓库内已提交的 NotoEmoji-VariableFont_wght.ttf
-          test -f Assets/Fonts/NotoEmoji-VariableFont_wght.ttf
-          ls -lh Assets/Fonts/NotoEmoji-VariableFont_wght.ttf
-
           # 1. 创建目录
           mkdir -p ~/.local/share/godot/export_templates/4.5.1.stable
           mkdir -p web
