@@ -18,6 +18,11 @@ var card_data: Dictionary = {}:
 const HOVER_SCALE = Vector2(1.2, 1.2)
 const HOVER_OFFSET = -50.0
 const ANIM_SPEED = 0.15
+const LONG_PRESS_DURATION = 0.35
+
+var touch_down := false
+var touch_hover_active := false
+var long_press_token := 0
 
 func _ready():
 	update_ui()
@@ -49,31 +54,63 @@ func update_ui():
 			card_image.texture = preload("res://Assets/Images/coffee_cup.png")
 
 func _on_mouse_entered():
-	z_index = 100
-	var tween = create_tween().set_parallel(true).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.tween_property(visual, "scale", HOVER_SCALE, ANIM_SPEED)
-	tween.tween_property(visual, "position:y", HOVER_OFFSET, ANIM_SPEED)
-	tween.tween_property(visual, "modulate", Color(1.1, 1.1, 1.1), ANIM_SPEED)
+	_apply_hover_state(true)
 
 func _on_mouse_exited():
-	z_index = 0
+	if not touch_hover_active:
+		_apply_hover_state(false)
+
+func _apply_hover_state(active: bool):
+	z_index = 100 if active else 0
 	var tween = create_tween().set_parallel(true).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.tween_property(visual, "scale", Vector2.ONE, ANIM_SPEED)
-	tween.tween_property(visual, "position:y", 0.0, ANIM_SPEED)
-	tween.tween_property(visual, "modulate", Color.WHITE, ANIM_SPEED)
+	if active:
+		tween.tween_property(visual, "scale", HOVER_SCALE, ANIM_SPEED)
+		tween.tween_property(visual, "position:y", HOVER_OFFSET, ANIM_SPEED)
+		tween.tween_property(visual, "modulate", Color(1.1, 1.1, 1.1), ANIM_SPEED)
+	else:
+		tween.tween_property(visual, "scale", Vector2.ONE, ANIM_SPEED)
+		tween.tween_property(visual, "position:y", 0.0, ANIM_SPEED)
+		tween.tween_property(visual, "modulate", Color.WHITE, ANIM_SPEED)
 
 func set_highlight(enabled: bool):
 	if highlight:
 		highlight.visible = enabled
 
+func _play_card():
+	# 选中逻辑
+	var tween = create_tween()
+	tween.tween_property(visual, "scale", Vector2(0.9, 0.9), 0.05)
+	tween.tween_property(visual, "scale", HOVER_SCALE, 0.1)
+
+	# 发出信号，通知战斗场景该卡牌被使用了
+	var battle_scene = get_tree().current_scene
+	if battle_scene.has_method("_on_card_played"):
+		battle_scene._on_card_played(self)
+
 func _gui_input(event):
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			touch_down = true
+			touch_hover_active = false
+			long_press_token += 1
+			var token = long_press_token
+			var timer = get_tree().create_timer(LONG_PRESS_DURATION)
+			timer.timeout.connect(func():
+				if touch_down and token == long_press_token:
+					touch_hover_active = true
+					_apply_hover_state(true)
+			)
+		else:
+			touch_down = false
+			long_press_token += 1
+			if touch_hover_active:
+				touch_hover_active = false
+				_apply_hover_state(false)
+			else:
+				_play_card()
+		return
+
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		# 选中逻辑
-		var tween = create_tween()
-		tween.tween_property(visual, "scale", Vector2(0.9, 0.9), 0.05)
-		tween.tween_property(visual, "scale", HOVER_SCALE, 0.1)
-		
-		# 发出信号，通知战斗场景该卡牌被使用了
-		var battle_scene = get_tree().current_scene
-		if battle_scene.has_method("_on_card_played"):
-			battle_scene._on_card_played(self)
+		if touch_down or touch_hover_active:
+			return
+		_play_card()

@@ -13,6 +13,11 @@ shader_parameter/lod = 2.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_bg"]
 bg_color = Color(0.1, 0.1, 0.1, 0.6)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 0.35)
 corner_radius_top_left = 5
 corner_radius_top_right = 5
 corner_radius_bottom_right = 5
@@ -136,7 +141,7 @@ horizontal_alignment = 1
 
 [node name="EnemyHPBar" type="ProgressBar" parent="TopArea/EnemyInfo"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 20)
+custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_hp_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")
@@ -247,7 +252,7 @@ text = "Hero Name"
 
 [node name="HeroHPBar" type="ProgressBar" parent="BottomArea/StatusBar/HeroStatusSmall/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 12)
+custom_minimum_size = Vector2(120, 18)
 layout_mode = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_hp_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")

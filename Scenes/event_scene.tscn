@@ -13,7 +13,7 @@ script = ExtResource("1_e1vnt")
 
 [node name="ResignationBar" type="ProgressBar" parent="."]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(400, 10)
+custom_minimum_size = Vector2(400, 16)
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -21,12 +21,13 @@ anchor_right = 0.5
 offset_left = -200.0
 offset_top = 20.0
 offset_right = 200.0
-offset_bottom = 30.0
+offset_bottom = 36.0
 grow_horizontal = 2
 max_value = 10.0
 step = 1.0
 value = 3.0
 show_percentage = false
+theme_override_styles/background = SubResource("StyleBoxFlat_hp_bg")
 
 [node name="ResignationLabel" type="Label" parent="ResignationBar"]
 layout_mode = 1

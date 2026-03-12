@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://tjq1vvu508mp"
-path="res://.godot/imported/SmileySans-Oblique.ttf-92764cf63ba9ca50f506f2e8946a463b.fontdata"
+uid="uid://bdt3hru1jscom"
+path="res://.godot/imported/NotoSansSC-Bold.ttf-9745735ef1660dae65b568852d8cbf08.fontdata"
 
 [deps]
 
-source_file="res://Assets/Fonts/SmileySans-Oblique.ttf"
-dest_files=["res://.godot/imported/SmileySans-Oblique.ttf-92764cf63ba9ca50f506f2e8946a463b.fontdata"]
+source_file="res://Assets/Fonts/NotoSansSC-Bold.ttf"
+dest_files=["res://.godot/imported/NotoSansSC-Bold.ttf-9745735ef1660dae65b568852d8cbf08.fontdata"]
 
 [params]
 
@@ -27,16 +27,10 @@ subpixel_positioning=4
 keep_rounding_remainders=true
 oversampling=0.0
 Fallbacks=null
-fallbacks=[Resource("uid://bhc7ou8fh4crb", "res://Assets/Fonts/twemoji.ttf")]
+fallbacks=[]
 Compress=null
 compress=true
-preload=[{
-"chars": [],
-"glyphs": [],
-"name": "新建配置",
-"size": Vector2i(16, 0),
-&"variation_embolden": 0.0
-}]
+preload=[]
 language_support={}
 script_support={}
 opentype_features={}

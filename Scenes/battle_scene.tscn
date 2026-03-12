@@ -13,6 +13,11 @@ shader_parameter/lod = 2.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_bg"]
 bg_color = Color(0.1, 0.1, 0.1, 0.6)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 0.35)
 corner_radius_top_left = 5
 corner_radius_top_right = 5
 corner_radius_bottom_right = 5
@@ -111,7 +116,7 @@ grow_vertical = 2
 
 [node name="ResignationBar" type="ProgressBar" parent="TopArea"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(400, 10)
+custom_minimum_size = Vector2(400, 16)
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -119,12 +124,13 @@ anchor_right = 0.5
 offset_left = -200.0
 offset_top = 10.0
 offset_right = 200.0
-offset_bottom = 20.0
+offset_bottom = 26.0
 grow_horizontal = 2
 max_value = 10.0
 step = 1.0
 value = 1.0
 show_percentage = false
+theme_override_styles/background = SubResource("StyleBoxFlat_hp_bg")
 
 [node name="ResignationLabel" type="Label" parent="TopArea/ResignationBar"]
 layout_mode = 1
@@ -167,7 +173,7 @@ horizontal_alignment = 1
 
 [node name="EnemyHPBar" type="ProgressBar" parent="TopArea/EnemyInfo"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 20)
+custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_hp_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")
@@ -276,7 +282,7 @@ text = "Hero Name"
 
 [node name="HeroHPBar" type="ProgressBar" parent="BottomArea/StatusBar/HeroStatusSmall/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 12)
+custom_minimum_size = Vector2(120, 18)
 layout_mode = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_hp_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")
