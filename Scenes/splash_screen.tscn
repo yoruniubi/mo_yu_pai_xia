@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=3 format=3 uid="uid://b44ssuf2g4uy3"]
 
-[ext_resource type="Script" path="res://Scripts/splash_screen.gd" id="1_script"]
-[ext_resource type="Texture2D" path="res://studio_logo/logo.jpg" id="2_logo"]
+[ext_resource type="Script" uid="uid://bjjwi0ygaiipc" path="res://Scripts/splash_screen.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://drgydtc2uyej7" path="res://studio_logo/logo.jpg" id="2_logo"]
 
 [node name="SplashScreen" type="Control"]
 layout_mode = 3
@@ -19,7 +19,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(1, 1, 1, 1)
 
 [node name="Logo" type="TextureRect" parent="."]
 layout_mode = 1
