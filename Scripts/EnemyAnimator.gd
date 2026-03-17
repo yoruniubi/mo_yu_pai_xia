@@ -63,3 +63,68 @@ func play_attack():
 	atk_tween.parallel().tween_property(self, "scale", original_scale, 0.3)
 	
 	atk_tween.finished.connect(play_idle)
+
+# --- 4. 蓄力 (Charge): 发光膨胀预警 ---
+func play_charge():
+	if idle_tween: idle_tween.kill()
+	
+	var charge_tween = create_tween()
+	# 膨胀 + 向上漂移
+	charge_tween.tween_property(self, "scale", original_scale * 1.25, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	charge_tween.parallel().tween_property(self, "position:y", original_pos.y - 20, 0.4)
+	# 开始橙黄发光
+	charge_tween.parallel().tween_property(self, "modulate", Color(2.0, 1.4, 0.3), 0.4)
+	# 维持蓄力感：轻微上下震颤
+	for i in range(3):
+		charge_tween.tween_property(self, "position:y", original_pos.y - 20 + 6, 0.12)
+		charge_tween.tween_property(self, "position:y", original_pos.y - 20 - 6, 0.12)
+	# 收缩准备爆发
+	charge_tween.tween_property(self, "scale", original_scale * 1.05, 0.15).set_trans(Tween.TRANS_QUAD)
+	charge_tween.parallel().tween_property(self, "modulate", Color(1.8, 1.0, 0.2), 0.15)
+	# 回到呼吸状态，但保持轻微黄色（提示「已蓄力」）
+	charge_tween.finished.connect(func():
+		modulate = Color(1.6, 1.2, 0.5)
+		play_idle()
+	)
+
+# --- 5. 特殊技能 (Special): 横向扑击 + 颜色闪烁 ---
+func play_special():
+	if idle_tween: idle_tween.kill()
+	
+	var sp_tween = create_tween()
+	# 旋转一圈 + 缩小蓄力
+	sp_tween.tween_property(self, "rotation_degrees", -20, 0.15).set_trans(Tween.TRANS_QUAD)
+	sp_tween.parallel().tween_property(self, "scale", original_scale * 0.85, 0.15)
+	sp_tween.parallel().tween_property(self, "modulate", Color(0.4, 0.8, 2.5), 0.15)
+	# 爆冲向左（向玩家侧）
+	sp_tween.tween_property(self, "position:x", original_pos.x + 80, 0.08).set_trans(Tween.TRANS_EXPO)
+	sp_tween.parallel().tween_property(self, "scale", original_scale * 1.3, 0.08)
+	sp_tween.parallel().tween_property(self, "modulate", Color(2.0, 2.0, 2.0), 0.08) # 白色爆闪
+	# 弹回
+	sp_tween.tween_property(self, "position:x", original_pos.x, 0.35).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	sp_tween.parallel().tween_property(self, "rotation_degrees", 0, 0.35)
+	sp_tween.parallel().tween_property(self, "scale", original_scale, 0.35)
+	sp_tween.parallel().tween_property(self, "modulate", Color.WHITE, 0.35)
+	
+	sp_tween.finished.connect(play_idle)
+
+# --- 6. 狂暴 (Enrage): 高速抖动 + 深红染色 ---
+func play_enrage():
+	if idle_tween: idle_tween.kill()
+	
+	var er_tween = create_tween()
+	# 变红
+	er_tween.tween_property(self, "modulate", Color(2.5, 0.3, 0.3), 0.2)
+	er_tween.parallel().tween_property(self, "scale", original_scale * 1.2, 0.2)
+	# 高频左右抖动（愤怒感）
+	for i in range(6):
+		var offset = 14 if i % 2 == 0 else -14
+		er_tween.tween_property(self, "position:x", original_pos.x + offset, 0.05)
+	# 归位
+	er_tween.tween_property(self, "position:x", original_pos.x, 0.05)
+	er_tween.parallel().tween_property(self, "scale", original_scale * 1.15, 0.1)
+	# 保持深红 idle 提示已狂暴
+	er_tween.finished.connect(func():
+		modulate = Color(1.8, 0.5, 0.5)
+		play_idle()
+	)

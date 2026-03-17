@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3 uid="uid://cikocdbiouill"]
 
-[ext_resource type="Texture2D" path="res://Assets/Images/medusa.png" id="1_medusa"]
-[ext_resource type="Script" path="res://Scripts/character_data.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://b3ndnoqdtlggy" path="res://Assets/Images/medusa.png" id="1_medusa"]
+[ext_resource type="Script" uid="uid://bxv5ra5v2rxb4" path="res://Scripts/character_data.gd" id="1_script"]
 
 [resource]
 script = ExtResource("1_script")
@@ -12,7 +12,21 @@ character_image = ExtResource("1_medusa")
 core_emojis = "📋, ❌"
 combo_style = "规则制裁流"
 description = "通过施加“面试禁令”和“待岗”状态，让敌人攻击时受到反震。"
-card_pool = [{
+card_pool = Array[Dictionary]([{
+"cost": 1,
+"description": "封印敌人下一次行动，同时造成 15 点伤害",
+"emoji": "❌",
+"name": "否决申请",
+"type": "cancel_deal_dmg",
+"value": 15
+}, {
+"cost": 1,
+"description": "获得 12 护盾；若本回合已打出过 ❌，额外造成 20 点伤害",
+"emoji": "📋",
+"name": "合规检查",
+"type": "shield_conditional_dmg",
+"value": 12
+}, {
 "cost": 2,
 "description": "消除老板当前的意图图标 (使其本回合发呆)",
 "emoji": "❌",
@@ -54,4 +68,4 @@ card_pool = [{
 "name": "职场天平",
 "type": "heal_vulnerability",
 "value": 10
-}]
+}])

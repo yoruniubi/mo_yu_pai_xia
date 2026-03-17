@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3 uid="uid://squirrel_boomtail"]
 
 [ext_resource type="Texture2D" path="res://Assets/Images/Boomtail.png" id="1_0qrlt"]
 [ext_resource type="Script" path="res://Scripts/character_data.gd" id="1_18s6h"]
@@ -12,30 +12,30 @@ character_image = ExtResource("1_0qrlt")
 core_emojis = "🌰, 🔥, 💣"
 combo_style = "爆发输出流"
 description = "叠加强力火属性伤害，最后用炸弹结算，产生大爆炸。"
-card_pool = [{
+card_pool = Array[Dictionary]([{
 "cost": 1,
-"description": "造成 6 伤害，目标“火大”+1",
+"description": "造成 6 伤害，目标火大+1",
 "emoji": "🔥",
 "name": "急件火大",
 "type": "attack_fire",
 "value": 6
 }, {
 "cost": 2,
-"description": "造成 10 伤害。若目标有“火大”，每层额外+5",
+"description": "造成 10 伤害。若目标有火大，每层额外+8",
 "emoji": "💣",
 "name": "松果手雷",
 "type": "attack_bomb",
 "value": 10
 }, {
 "cost": 1,
-"description": "目标“火大”层数翻倍（若为0则设为1）",
+"description": "目标火大层数翻倍（若为0则设为1）",
 "emoji": "🧨",
 "name": "火上浇油",
 "type": "buff_fire",
 "value": 2
 }, {
 "cost": 1,
-"description": "造成 5 伤害，获得 1 个随机 🔥 卡",
+"description": "造成 5 伤害，获得 1 个随机火卡",
 "emoji": "🌰",
 "name": "本命核心：松果",
 "type": "attack_seed",
@@ -49,9 +49,23 @@ card_pool = [{
 "value": 15
 }, {
 "cost": 1,
-"description": "产生一张随机 🔥 卡放入手牌",
+"description": "产生一张随机火卡放入手牌",
 "emoji": "🧨",
 "name": "紧急引信",
 "type": "generate_fire_card",
 "value": 1
-}]
+}, {
+"cost": 1,
+"description": "标记敌人：之后本回合每打出一张火牌，额外结算一次火大伤害",
+"emoji": "🧨",
+"name": "点燃导火索",
+"type": "ignite_fuse",
+"value": 1
+}, {
+"cost": 2,
+"description": "为敌人叠加 3 层爆炸标记，回合结束时每层造成 20 点伤害",
+"emoji": "💥",
+"name": "核爆倒计时",
+"type": "bomb_timer",
+"value": 3
+}])

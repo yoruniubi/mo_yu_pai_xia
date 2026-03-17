@@ -461,54 +461,54 @@ var universal_combos = {
 var character_combos = {
 	"博姆 (Boomtail)": {
 		"🔥⌨️": {"name": "愤怒的键盘侠", "parts": ["🔥", "⌨️"], "effect": "本回合所有键盘伤害变为 3 倍", "logic": "angry_keyboard"},
-		"🔥💣🧨": {"name": "核能爆破", "parts": ["🔥", "💣", "🧨"], "effect": "造成 30 点伤害，火大层数翻三倍", "logic": "nuclear_bomb"},
-		"⌨️⌨️🔥": {"name": "加班狂魔", "parts": ["⌨️", "⌨️", "🔥"], "effect": "造成 25 点无视防御伤害", "logic": "overtime_demon"},
-		"🔥🌋": {"name": "火山爆发", "parts": ["🔥", "🌋"], "effect": "消耗所有火大，每层造成 15 伤害", "logic": "volcano_eruption"}
+		"🔥💣🧨": {"name": "核能爆破", "parts": ["🔥", "💣", "🧨"], "effect": "造成 40 点伤害 + 当前火大层数×5 额外伤害，火大层数翻三倍", "logic": "nuclear_bomb"},
+		"⌨️⌨️🔥": {"name": "加班狂魔", "parts": ["⌨️", "⌨️", "🔥"], "effect": "造成 30 点无视防御伤害，额外叠加 2 层火大", "logic": "overtime_demon"},
+		"🔥🌋": {"name": "火山爆发", "parts": ["🔥", "🌋"], "effect": "消耗所有火大，每层造成 20 伤害，并获得等量护盾", "logic": "volcano_eruption"}
 	},
 	"墨里 (Inkwell)": {
 		"💩🌊": {
 			"name": "浑水摸鱼",
 			"parts": ["💩", "🌊"],
-			"effect": "获得 15 点防御，且下回合多抽 2 张牌",
+			"effect": "获得 20 点防御，且下回合多抽 2 张牌",
 			"logic": "muddy_water"
 		},
 		"🐙💨": {
 			"name": "墨雾逃生",
 			"parts": ["🐙", "💨"],
-			"effect": "本回合无敌，且移除所有垃圾卡",
+			"effect": "本回合无敌，移除所有垃圾卡，并抽 2 张牌",
 			"logic": "ink_escape"
 		},
-		"🌊🌀": {"name": "深海漩涡", "parts": ["🌊", "🌀"], "effect": "老板连续 2 回合无法行动", "logic": "deep_sea_vortex"}
+		"🌊🌀": {"name": "深海漩涡", "parts": ["🌊", "🌀"], "effect": "老板连续 2 回合无法行动，并造成 30 点伤害", "logic": "deep_sea_vortex"}
 	},
 	"莱奥 (Leo)": {
 		"📊📈🍞": {
 			"name": "画大饼",
 			"parts": ["📊", "📈", "🍞"],
-			"effect": "获得 3 层虚假希望（抵消致死伤害）",
+			"effect": "获得 2 层虚假希望（抵消致死伤害），抽 2 张牌",
 			"logic": "big_bread"
 		},
 		"📊📈📊": {
 			"name": "循环报表",
 			"parts": ["📊", "📈", "📊"],
-			"effect": "重复释放本回合打出的所有数据卡效果",
+			"effect": "重复释放本回合最后一张牌的效果一次",
 			"logic": "loop_report"
 		},
-		"📊📑": {"name": "季度审计", "parts": ["📊", "📑"], "effect": "立即结算并爆发所有记录数值的 2 倍", "logic": "quarterly_audit"}
+		"📊📑": {"name": "季度审计", "parts": ["📊", "📑"], "effect": "造成记录值 + 25 点固定伤害，不依赖记录值也有保底", "logic": "quarterly_audit"}
 	},
 	"苏珊 (Susan)": {
 		"❌📋": {
 			"name": "流程繁琐",
 			"parts": ["❌", "📋"],
-			"effect": "老板下 2 回合无法行动",
+			"effect": "老板下 2 回合无法行动，造成 25 点伤害，抽 1 张牌",
 			"logic": "red_tape"
 		},
 		"⏳📋": {
 			"name": "带薪休假",
 			"parts": ["⏳", "📋"],
-			"effect": "回复 20 HP，且下回合 AP +2",
+			"effect": "回复 30 HP，下回合 AP +2，抽 1 张牌",
 			"logic": "paid_leave"
 		},
-		"❌🚫": {"name": "一票否决", "parts": ["❌", "🚫"], "effect": "永久降低老板 10 点攻击力", "logic": "veto_power"}
+		"❌🚫": {"name": "一票否决", "parts": ["❌", "🚫"], "effect": "永久降低老板 10 点攻击力，并造成 40 点直接伤害", "logic": "veto_power"}
 	}
 }
 
@@ -545,7 +545,7 @@ var universal_cards: Array = [
 	{"name": "打印文件", "emoji": "📄", "cost": 1, "description": "获得 4 护盾，并将一张 📑 放入弃牌堆", "type": "shield_generate_review", "value": 4},
 	{"name": "团建干杯", "emoji": "🥂", "cost": 1, "description": "本回合所有手牌消耗 -1 (最低为 0)", "type": "cost_reduction", "value": 1},
 	{"name": "存档", "emoji": "💾", "cost": 1, "description": "本回合结束时不弃掉手牌", "type": "save_hand"},
-	{"name": "拔电源", "emoji": "🔌", "cost": 2, "description": "造成 40 伤害，立即结束回合", "type": "pull_plug", "value": 40},
+	{"name": "拔电源", "emoji": "🔌", "cost": 2, "description": "造成 50 伤害，立即结束回合", "type": "pull_plug", "value": 50},
 	{"name": "摸鱼洗手", "emoji": "🧼", "cost": 1, "description": "移除自身所有负面状态", "type": "clean_status"},
 	{"name": "快递到了", "emoji": "📦", "cost": 1, "description": "随机获得 2 张通用卡", "type": "delivery_cards", "value": 2},
 	{"name": "裁员名单", "emoji": "📉", "cost": 2, "description": "消耗所有护盾，每点护盾造成 2 倍伤害", "type": "layoff_list", "value": 2}

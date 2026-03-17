@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3 uid="uid://d3u8iwkrrx2wt"]
 
-[ext_resource type="Texture2D" path="res://Assets/Images/leo.png" id="1_leo"]
-[ext_resource type="Script" path="res://Scripts/character_data.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://dlewjydya3a57" path="res://Assets/Images/leo.png" id="1_leo"]
+[ext_resource type="Script" uid="uid://bxv5ra5v2rxb4" path="res://Scripts/character_data.gd" id="1_script"]
 
 [resource]
 script = ExtResource("1_script")
@@ -12,20 +12,20 @@ character_image = ExtResource("1_leo")
 core_emojis = "📊, 📈"
 combo_style = "策略进化流"
 description = "重新定义卡牌属性，复制敌人技能，根据对手弱点进行演化。"
-card_pool = [{
+card_pool = Array[Dictionary]([{
 "cost": 1,
-"description": "记录上一张牌的伤害数值（保底 5 点）",
+"description": "造成 6 点伤害，并记录本次伤害值",
 "emoji": "📊",
 "name": "虚假报表",
-"type": "record_data",
-"value": 1
+"type": "attack_then_record",
+"value": 6
 }, {
 "cost": 2,
-"description": "将 📊 记录的数值翻倍并再次释放（保底 5 点）",
+"description": "造成 15 点伤害；若有记录值则额外释放记录值",
 "emoji": "📈",
 "name": "指数增长",
-"type": "release_data",
-"value": 2
+"type": "attack_plus_release",
+"value": 15
 }, {
 "cost": 1,
 "description": "削弱敌人的防御，持续到回合结束",
@@ -35,7 +35,7 @@ card_pool = [{
 "value": 5
 }, {
 "cost": 1,
-"description": "造成 20 伤害。抽 3 张牌。记录本次伤害。回复 1 AP。",
+"description": "造成 20 伤害。抽 2 张牌。记录本次伤害。",
 "emoji": "📊",
 "name": "本命核心：图表",
 "type": "attack_draw_record",
@@ -54,4 +54,4 @@ card_pool = [{
 "name": "季度报告",
 "type": "draw_ap",
 "value": 1
-}]
+}])

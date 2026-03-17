@@ -488,6 +488,16 @@ func _style_resignation_bar(bar: ProgressBar):
 
 func _on_end_turn_pressed():
 	end_turn_button.disabled = true
+	# Boomtail 核爆倒计时：回合结束时爆炸
+	if has_meta("bomb_timer_active"):
+		remove_meta("bomb_timer_active")
+		var marks = get_meta("bomb_marks", 0)
+		if marks > 0:
+			var bomb_dmg = marks * 20
+			apply_damage_to_enemy(bomb_dmg)
+			remove_meta("bomb_marks")
+			spawn_floating_number("💥 BOOM x%d = %d!" % [marks, bomb_dmg], true, %BossSprite.global_position + Vector2(0, -100), Color.ORANGE_RED)
+			await get_tree().create_timer(0.5).timeout
 	if skip_enemy_turn:
 		skip_enemy_turn = false
 		print("连招效果：跳过老板回合")
@@ -545,7 +555,11 @@ func enemy_turn():
 			print("由于未打出早会卡，受到 %d 点伤害" % penalty)
 			apply_damage_to_hero(penalty)
 	
-	if %BossSprite.has_method("play_attack"):
+	# 根据敌人类型决定演出动画
+	var anim_type = _get_enemy_anim_type(enemy_name)
+	if %BossSprite.has_method("play_" + anim_type):
+		%BossSprite.call("play_" + anim_type)
+	else:
 		%BossSprite.play_attack()
 	
 	await get_tree().create_timer(0.5).timeout
@@ -628,6 +642,37 @@ func enemy_turn():
 		
 	start_player_turn()
 
+# 根据敌人当前回合意图类型决定播放哪种动画
+func _get_enemy_anim_type(enemy_name: String) -> String:
+	# 审计犬/监控猿：发布规则/锁定 → 特殊
+	if "审计" in enemy_name or "监控" in enemy_name:
+		return "special"
+	# 树懒/蜘蛛：塞垃圾卡 → 特殊
+	if "树懒" in enemy_name or "蜘蛛" in enemy_name:
+		return "special"
+	# 九头蛇：回血时先蓄力
+	if "九头蛇" in enemy_name:
+		if hydra_head_damage_this_turn < hydra_head_hp:
+			return "charge"
+		else:
+			return "special"
+	# 毒蛇：反转回血 → 特殊
+	if "毒蛇" in enemy_name:
+		return "special"
+	# 刺猬倒计时：最后回合爆发
+	if "刺猬" in enemy_name:
+		if hedgehog_turns_left <= 1:
+			return "enrage"
+		else:
+			return "attack"
+	# CEO 低血量狂暴
+	if "CEO" in enemy_name and enemy_hp < enemy_hp_bar.max_value * 0.4:
+		return "enrage"
+	# 浣熊/鹦鹉：干扰型 → 特殊
+	if "浣熊" in enemy_name or "鹦鹉" in enemy_name:
+		return "special"
+	return "attack"
+
 func inject_junk_card(type: String):
 	var junk_data = GameManager.junk_cards.get(type)
 	if not junk_data: return
@@ -665,6 +710,8 @@ func start_player_turn():
 	hydra_head_damage_this_turn = 0
 	spider_shuffle_used = false
 	first_card_free_used = false
+	if has_meta("cancel_played_this_turn"):
+		remove_meta("cancel_played_this_turn")
 	
 	# 回合开始重置护盾
 	hero_shield = 0
@@ -766,6 +813,11 @@ func apply_damage_to_hero(amount: int):
 		spawn_floating_number("MISS", false, hero_sprite.global_position + Vector2(0, -50), Color.CYAN)
 		return
 		
+	if has_meta("nullify_next_enemy_attack"):
+		remove_meta("nullify_next_enemy_attack")
+		spawn_floating_number("NULLIFIED!", false, hero_sprite.global_position + Vector2(0, -50), Color.CYAN)
+		return
+	
 	if %AnimationManager:
 		%AnimationManager.play_player_hit_anim()
 	
@@ -1205,10 +1257,12 @@ func trigger_combo(combo_data):
 		"angry_keyboard":
 			keyboard_buff_active = true
 		"nuclear_bomb":
-			apply_damage_to_enemy(30)
+			var nuke_dmg = 40 + enemy_fire_stacks * 5
+			apply_damage_to_enemy(nuke_dmg)
 			enemy_fire_stacks *= 3
+			spawn_floating_number("KABOOM!", true, %BossSprite.global_position + Vector2(0, -80), Color.ORANGE_RED)
 		"muddy_water":
-			apply_heal_to_hero(15)
+			apply_shield_to_hero(20)
 			for i in range(2): draw_card()
 		"ink_escape":
 			is_evading = true
@@ -1219,20 +1273,27 @@ func trigger_combo(combo_data):
 			for c in to_remove:
 				hand_cards.erase(c)
 				c.queue_free()
+			for i in range(2): draw_card()
 			update_hand_layout()
 		"big_bread":
-			false_hope_stacks += 3
+			false_hope_stacks += 2
+			for i in range(2): draw_card()
 		"loop_report":
 			if not last_player_card_data.is_empty():
 				execute_card_effect(last_player_card_data)
+				spawn_floating_number("REPLAY!", false, %BossSprite.global_position + Vector2(0, -120), Color.CYAN)
 		"red_tape":
 			intent_icon.text = "📋"
 			intent_text.text = "流程审批中"
 			skip_enemy_turn = true
+			set_meta("skip_next_intent", true)
+			apply_damage_to_enemy(25)
+			draw_card()
 		"paid_leave":
-			apply_heal_to_hero(20)
+			apply_heal_to_hero(30)
 			is_waiting_next_turn = false
-			next_turn_extra_draws += 2
+			next_turn_extra_ap += 2
+			draw_card()
 		"slack_trio":
 			for i in range(2): draw_card()
 			current_ap += 1
@@ -1296,21 +1357,30 @@ func trigger_combo(combo_data):
 			apply_damage_to_enemy(18)
 			apply_shield_to_hero(8)
 		"volcano_eruption":
-			var dmg = enemy_fire_stacks * 15
+			var shield_gained = enemy_fire_stacks * 2
+			var dmg = enemy_fire_stacks * 20
 			apply_damage_to_enemy(dmg)
+			apply_shield_to_hero(shield_gained)
 			enemy_fire_stacks = 0
 			spawn_floating_number("VOLCANO!", true, %BossSprite.global_position)
+		"overtime_demon":
+			apply_pure_damage_to_hero(0) # 无视护盾（直接调用不扣血）
+			apply_damage_to_enemy(30)
+			enemy_fire_stacks += 2
+			spawn_floating_number("OVERTIME!", true, %BossSprite.global_position + Vector2(0, -80), Color.RED)
 		"deep_sea_vortex":
 			skip_enemy_turn = true
 			set_meta("skip_next_intent", true)
+			apply_damage_to_enemy(30)
 			spawn_floating_number("STUNNED", false, %BossSprite.global_position + Vector2(0, -100), Color.CYAN)
 		"quarterly_audit":
-			apply_damage_to_enemy(recorded_data_value * 2)
-			spawn_floating_number("AUDITED", true, %BossSprite.global_position)
+			var audit_dmg = recorded_data_value + 25
+			apply_damage_to_enemy(audit_dmg)
+			spawn_floating_number("AUDITED!", true, %BossSprite.global_position)
 		"veto_power":
 			enemy_atk_reduction += 10
-			# 这里我们可以记录一个永久减攻的状态，或者简单处理
-			spawn_floating_number("VETOED", false, %BossSprite.global_position + Vector2(0, -100), Color.RED)
+			apply_damage_to_enemy(40)
+			spawn_floating_number("VETOED!", true, %BossSprite.global_position + Vector2(0, -100), Color.RED)
 		"system_crash":
 			apply_damage_to_enemy(60)
 			ap_multiplier_next_turn = 0.5
@@ -1443,7 +1513,7 @@ func execute_card_effect(data: Dictionary):
 			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
 			enemy_fire_stacks += 1
 		"attack_bomb":
-			var total_dmg = value + (enemy_fire_stacks * 5) + GameManager.attack_bonus_flat
+			var total_dmg = value + (enemy_fire_stacks * 8) + GameManager.attack_bonus_flat
 			apply_damage_to_enemy(total_dmg)
 		"buff_fire":
 			if enemy_fire_stacks == 0:
@@ -1493,11 +1563,19 @@ func execute_card_effect(data: Dictionary):
 			if c and c.card_data.get("emoji") == "📊":
 				await get_tree().create_timer(0.2).timeout
 				draw_card()
+		"attack_then_record":
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
+			recorded_data_value = last_damage_dealt
+			spawn_floating_number("RECORDED", false, hero_sprite.global_position + Vector2(0, -100), Color.GOLD)
+		"attack_plus_release":
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
+			if recorded_data_value > 0:
+				apply_damage_to_enemy(recorded_data_value)
+				spawn_floating_number("+ %d!" % recorded_data_value, true, %BossSprite.global_position + Vector2(0, -60), Color.ORANGE)
 		"attack_draw_record":
 			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
-			for i in range(3): draw_card()
+			for i in range(2): draw_card()
 			recorded_data_value = last_damage_dealt
-			current_ap += 1
 		"red_tape":
 			intent_icon.text = "📋"
 			intent_text.text = "流程审批中"
@@ -1674,12 +1752,50 @@ func execute_card_effect(data: Dictionary):
 			current_ap += value
 		"attack_debuff_atk_half":
 			apply_damage_to_enemy(value)
-			# 简化：降低老板下一击伤害
-
-			enemy_atk_reduction += 15 
+			enemy_atk_reduction += 15
 		"heal_vulnerability":
 			apply_heal_to_hero(value)
 			enemy_vulnerability += 5
+		"cancel_deal_dmg":
+			# Susan：否决申请 - 封印敌人下一次行动 + 造成伤害
+			set_meta("skip_next_intent", true)
+			skip_enemy_turn = true
+			apply_damage_to_enemy(value + GameManager.attack_bonus_flat)
+			spawn_floating_number("REJECTED!", true, %BossSprite.global_position + Vector2(0, -80), Color.RED)
+			set_meta("cancel_played_this_turn", true)
+		"shield_conditional_dmg":
+			# Susan：合规检查 - 获得护盾；若本回合打过 ❌，额外造成伤害
+			apply_shield_to_hero(value)
+			if has_meta("cancel_played_this_turn"):
+				apply_damage_to_enemy(20 + GameManager.attack_bonus_flat)
+				spawn_floating_number("COMPLIANCE!", true, %BossSprite.global_position + Vector2(0, -60), Color.GOLD)
+		"attack_steal_poison":
+			# Inkwell：触手核心 - 偷取耐性转为护盾 + 施加中毒
+			apply_shield_to_hero(value)
+			enemy_atk_reduction += value
+			enemy_poison_stacks += 3
+			spawn_floating_number("STOLEN!", false, %BossSprite.global_position + Vector2(0, -80), Color.PURPLE)
+		"shield_to_damage":
+			# Inkwell：墨汁炮 - 护盾值 × 1.5 转化为伤害
+			var cannon_dmg = int(hero_shield * 1.5)
+			cannon_dmg = max(value, cannon_dmg) # 最低保底伤害
+			apply_damage_to_enemy(cannon_dmg + GameManager.attack_bonus_flat)
+			spawn_floating_number("INK CANNON!", cannon_dmg > 25, %BossSprite.global_position + Vector2(0, -80), Color.DEEP_SKY_BLUE)
+		"nullify_next_attack":
+			# Inkwell：触手缠绕 - 使敌人下一次攻击变为0 + 偷取攻击力转护盾
+			set_meta("nullify_next_enemy_attack", true)
+			apply_shield_to_hero(value)
+			spawn_floating_number("TANGLED!", false, %BossSprite.global_position + Vector2(0, -80), Color.CYAN)
+		"ignite_fuse":
+			# Boomtail：点燃导火索 - 标记后本回合每打 🔥 额外结算一次火大
+			set_meta("fuse_active", true)
+			spawn_floating_number("FUSE LIT!", false, hero_sprite.global_position + Vector2(0, -80), Color.ORANGE)
+		"bomb_timer":
+			# Boomtail：核爆倒计时 - 叠加爆炸标记，下回合结束时爆炸
+			var current_marks = get_meta("bomb_marks", 0) + value
+			set_meta("bomb_marks", current_marks)
+			set_meta("bomb_timer_active", true)
+			spawn_floating_number("BOMB x%d" % current_marks, false, %BossSprite.global_position + Vector2(0, -80), Color.ORANGE_RED)
 		"ultimate_fire_filter":
 			var discarded_count = 0
 			for i in range(hand_cards.size() - 1, -1, -1):

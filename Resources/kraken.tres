@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3 uid="uid://kraken_inkwell"]
 
 [ext_resource type="Texture2D" path="res://Assets/Images/Sea_monster.png" id="1_kraken"]
 [ext_resource type="Script" path="res://Scripts/character_data.gd" id="1_script"]
@@ -11,10 +11,10 @@ race = "深渊克拉肯"
 character_image = ExtResource("1_kraken")
 core_emojis = "🐙, 🌊, 💩"
 combo_style = "控制闪避流"
-description = "利用墨雾和“潜水”让敌人攻击落空，通过持续伤害折磨对手。"
-card_pool = [{
+description = "利用墨雾和潜水让敌人攻击落空，通过持续伤害折磨对手。"
+card_pool = Array[Dictionary]([{
 "cost": 1,
-"description": "获得 8 点防御。若本回合触发过 💩，防御翻倍",
+"description": "获得 8 点防御。若本回合触发过💩，防御翻倍",
 "emoji": "🌊",
 "name": "墨水屏障",
 "type": "defense_ink",
@@ -23,7 +23,7 @@ card_pool = [{
 "cost": 2,
 "description": "本回合闪避所有伤害。下回合抽牌+1",
 "emoji": "💨",
-"name":"喷射墨雾",
+"name": "喷射墨雾",
 "type": "buff_evasion",
 "value": 1
 }, {
@@ -35,11 +35,11 @@ card_pool = [{
 "value": 3
 }, {
 "cost": 1,
-"description": "偷取敌人 5 点耐性值，转化为自身防御",
+"description": "偷取敌人 10 点耐性值，转化为自身防御，并施加 3 层中毒",
 "emoji": "🐙",
 "name": "本命核心：触手",
-"type": "attack_steal",
-"value": 5
+"type": "attack_steal_poison",
+"value": 8
 }, {
 "cost": 1,
 "description": "获得 10 护盾，抽 1 张牌",
@@ -54,4 +54,18 @@ card_pool = [{
 "name": "乌贼喷墨",
 "type": "debuff_atk_next",
 "value": 5
-}]
+}, {
+"cost": 2,
+"description": "造成等于当前护盾值 × 1.5 的伤害（防御转化为攻击）",
+"emoji": "🌊",
+"name": "墨汁炮",
+"type": "shield_to_damage",
+"value": 15
+}, {
+"cost": 1,
+"description": "使敌人下一次攻击变为 0，并偷取 8 点攻击力转为护盾",
+"emoji": "🐙",
+"name": "触手缠绕",
+"type": "nullify_next_attack",
+"value": 8
+}])

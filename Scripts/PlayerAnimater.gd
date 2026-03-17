@@ -21,10 +21,32 @@ func play_player_hit_anim():
 	# 我们可以震动整个场景根节点，或者震动 Camera2D
 	shake_screen(15.0, 0.3)
 
+# --- 根据 emoji 决定投掷物颜色 ---
+func _get_emoji_color(emoji: String) -> Color:
+	match emoji:
+		"🔥", "💣", "🧨", "🌋":
+			return Color(2.0, 0.7, 0.2)  # 火焰橙
+		"💧", "🌊", "🐙", "🌀", "💨":
+			return Color(0.3, 1.2, 2.0)  # 水蓝
+		"💩":
+			return Color(0.9, 0.55, 0.2)  # 棕
+		"🛡️":
+			return Color(0.5, 1.8, 1.8)  # 护盾青
+		"☠️", "💀":
+			return Color(0.6, 0.0, 1.4)  # 毒紫
+		"📊", "📈", "📑", "📁", "🗂️":
+			return Color(2.0, 1.8, 0.3)  # 文档金
+		"🌰", "🍄", "🌱":
+			return Color(0.6, 1.5, 0.4)  # 自然绿
+		_:
+			return Color.WHITE
+
 # --- 2. 玩家攻击 (Player Attack) ---
-# 传入卡牌的 Emoji (字符串或贴图)，实现“投掷”感
+# 传入卡牌的 Emoji (字符串或贴图)，实现"投掷"感
 func play_player_attack_anim(content):
 	var projectile
+	var emoji_str: String = str(content) if not (content is Texture2D) else ""
+	
 	if content is Texture2D:
 		projectile = TextureRect.new()
 		projectile.texture = content
@@ -32,7 +54,7 @@ func play_player_attack_anim(content):
 		projectile.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	else:
 		projectile = Label.new()
-		projectile.text = str(content)
+		projectile.text = emoji_str
 		projectile.add_theme_font_size_override("font_size", 64)
 		projectile.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		projectile.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -40,6 +62,10 @@ func play_player_attack_anim(content):
 	projectile.custom_minimum_size = Vector2(100, 100)
 	projectile.size = Vector2(100, 100)
 	projectile.pivot_offset = Vector2(50, 50)
+	
+	# 根据 emoji 类型设置发光颜色
+	var proj_color = _get_emoji_color(emoji_str)
+	projectile.modulate = proj_color
 	
 	# 从屏幕下方中心出发
 	var start_pos = Vector2(get_viewport().size.x / 2 - 50, get_viewport().size.y + 100)
@@ -49,19 +75,29 @@ func play_player_attack_anim(content):
 	# 必须添加到 CanvasLayer 或者根节点下，确保不被 UI 遮挡
 	get_tree().root.add_child(projectile)
 	
-	# B. 弹道飞行轨迹
+	# B. 弹道飞行轨迹（护盾类走弧线，攻击类直冲）
 	var t = create_tween().set_parallel(true)
-	# 向上方 Boss 的位置冲去 (使用 global_position 确保准确)
 	var target_pos = boss_node.global_position + (boss_node.size / 2) - Vector2(50, 50)
+	var flight_time = 0.25 if proj_color != Color.WHITE else 0.3
 	
-	t.tween_property(projectile, "global_position", target_pos, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-	t.tween_property(projectile, "scale", Vector2(1.5, 1.5), 0.3)
+	t.tween_property(projectile, "global_position", target_pos, flight_time).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	t.tween_property(projectile, "scale", Vector2(1.6, 1.6), flight_time)
+	# 飞行时旋转增加动感
+	t.tween_property(projectile, "rotation_degrees", 360.0, flight_time)
 	
 	# C. 命中反馈
 	await t.finished
-	projectile.queue_free() # 销毁弹道
 	
-	# 触发 Boss 的受击动画 (调用我们上一课写的函数)
+	# 命中时爆出同色闪光
+	if flash_layer:
+		flash_layer.modulate = Color(proj_color.r, proj_color.g, proj_color.b, 0.45)
+		var flash_t = create_tween()
+		flash_t.tween_property(flash_layer, "modulate:a", 0, 0.3).set_trans(Tween.TRANS_SINE)
+		flash_t.finished.connect(func(): flash_layer.modulate = Color(1, 0, 0, 0))
+	
+	projectile.queue_free()
+	
+	# 触发 Boss 的受击动画
 	if boss_node.has_method("play_hit"):
 		boss_node.play_hit()
 	
