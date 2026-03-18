@@ -86,4 +86,11 @@ func _gui_input(event):
 func select_this_character():
 	if not is_inside_tree():
 		return
-	GameManager.start_game(character_data)
+	# 通知父节点（character_selection.gd）来决定是否播放过场动画
+	# 卡片挂在 GridContainer 下，所以需要 get_parent().get_parent() 才是 CharacterSelection
+	var selection_node = get_parent().get_parent()
+	if selection_node and selection_node.has_method("_on_character_selected"):
+		selection_node._on_character_selected(character_data)
+	else:
+		# 兜底：直接开始（无过场）
+		GameManager.start_game(character_data)

@@ -33,6 +33,7 @@ var attack_bonus_flat: int = 0
 var ap_drain_per_turn: int = 0
 var hp_drain_per_turn: int = 0
 var skip_next_battle: bool = false
+var has_seen_intro: bool = false  # 是否已看过开场过场动画
  
 func _ready():
 	_setup_emoji_font_fallback()

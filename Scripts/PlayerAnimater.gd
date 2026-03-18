@@ -145,3 +145,8 @@ func play_evade_anim():
 	t.tween_property(sprite, "modulate:a", 0.5, 0.1)
 	t.tween_property(sprite, "position:x", original_pos.x, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_property(sprite, "modulate:a", 1.0, 0.2)
+
+# --- 5. 过场动画 (Story Animation) ---
+func play_story_anim():
+	var parent = get_parent()
+	if not parent is Control: return
