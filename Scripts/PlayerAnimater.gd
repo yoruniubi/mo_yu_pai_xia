@@ -6,20 +6,12 @@ extends Node
 
 # --- 1. 玩家受击 (Player Hit) ---
 func play_player_hit_anim():
-	# 即使没有闪屏层，也要震屏
-	shake_screen(15.0, 0.3)
+	shake_screen(10.0, 0.25)
 	if not flash_layer: return
-	# A. 视野红闪
+	flash_layer.modulate = Color(1, 0, 0, 0.35)
 	var t = create_tween()
-	# 显式设置为红色并设置透明度，防止被其他特效（如连招金色）残留颜色影响
-	flash_layer.modulate = Color(1, 0, 0, 0.5) 
-	t.tween_property(flash_layer, "modulate:a", 0, 0.4).set_trans(Tween.TRANS_SINE)
-	# 动画结束后确保颜色重置为红色基础色
+	t.tween_property(flash_layer, "modulate:a", 0, 0.35).set_trans(Tween.TRANS_SINE)
 	t.finished.connect(func(): flash_layer.modulate = Color(1, 0, 0, 0))
-	
-	# B. 剧烈震屏 (Screen Shake)
-	# 我们可以震动整个场景根节点，或者震动 Camera2D
-	shake_screen(15.0, 0.3)
 
 # --- 根据 emoji 决定投掷物颜色 ---
 func _get_emoji_color(emoji: String) -> Color:
@@ -41,68 +33,69 @@ func _get_emoji_color(emoji: String) -> Color:
 		_:
 			return Color.WHITE
 
+# 攻击动画冷却控制：避免快速连打时特效叠加过多
+var _attack_anim_busy := false
+
 # --- 2. 玩家攻击 (Player Attack) ---
-# 传入卡牌的 Emoji (字符串或贴图)，实现"投掷"感
+# 传入卡牌的 Emoji (字符串或贴图)，实现轻量投掷感
 func play_player_attack_anim(content):
-	var projectile
+	# 冷却中直接跳过投掷物，只触发 Boss 受击
+	if _attack_anim_busy:
+		if boss_node.has_method("play_hit"):
+			boss_node.play_hit()
+		return
+	_attack_anim_busy = true
+	
 	var emoji_str: String = str(content) if not (content is Texture2D) else ""
-	
-	if content is Texture2D:
-		projectile = TextureRect.new()
-		projectile.texture = content
-		projectile.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		projectile.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	else:
-		projectile = Label.new()
-		projectile.text = emoji_str
-		projectile.add_theme_font_size_override("font_size", 64)
-		projectile.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		projectile.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	
-	projectile.custom_minimum_size = Vector2(100, 100)
-	projectile.size = Vector2(100, 100)
-	projectile.pivot_offset = Vector2(50, 50)
-	
-	# 根据 emoji 类型设置发光颜色
 	var proj_color = _get_emoji_color(emoji_str)
+	
+	var projectile: Control
+	if content is Texture2D:
+		var tr = TextureRect.new()
+		tr.texture = content
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		projectile = tr
+	else:
+		var lbl = Label.new()
+		lbl.text = emoji_str
+		lbl.add_theme_font_size_override("font_size", 56)
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		projectile = lbl
+	
+	projectile.custom_minimum_size = Vector2(80, 80)
+	projectile.size = Vector2(80, 80)
+	projectile.pivot_offset = Vector2(40, 40)
 	projectile.modulate = proj_color
 	
-	# 从屏幕下方中心出发
-	var start_pos = Vector2(get_viewport().size.x / 2 - 50, get_viewport().size.y + 100)
+	var start_pos = Vector2(get_viewport().size.x / 2 - 40, get_viewport().size.y - 80)
 	projectile.global_position = start_pos
-	projectile.scale = Vector2(0.5, 0.5)
-	
-	# 必须添加到 CanvasLayer 或者根节点下，确保不被 UI 遮挡
+	projectile.scale = Vector2(0.6, 0.6)
 	get_tree().root.add_child(projectile)
 	
-	# B. 弹道飞行轨迹（护盾类走弧线，攻击类直冲）
+	var target_pos = boss_node.global_position + (boss_node.size / 2) - Vector2(40, 40)
 	var t = create_tween().set_parallel(true)
-	var target_pos = boss_node.global_position + (boss_node.size / 2) - Vector2(50, 50)
-	var flight_time = 0.25 if proj_color != Color.WHITE else 0.3
+	t.tween_property(projectile, "global_position", target_pos, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.tween_property(projectile, "scale", Vector2(1.2, 1.2), 0.2)
+	t.tween_property(projectile, "rotation_degrees", 180.0, 0.2)
 	
-	t.tween_property(projectile, "global_position", target_pos, flight_time).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-	t.tween_property(projectile, "scale", Vector2(1.6, 1.6), flight_time)
-	# 飞行时旋转增加动感
-	t.tween_property(projectile, "rotation_degrees", 360.0, flight_time)
-	
-	# C. 命中反馈
 	await t.finished
-	
-	# 命中时爆出同色闪光
-	if flash_layer:
-		flash_layer.modulate = Color(proj_color.r, proj_color.g, proj_color.b, 0.45)
-		var flash_t = create_tween()
-		flash_t.tween_property(flash_layer, "modulate:a", 0, 0.3).set_trans(Tween.TRANS_SINE)
-		flash_t.finished.connect(func(): flash_layer.modulate = Color(1, 0, 0, 0))
-	
 	projectile.queue_free()
 	
-	# 触发 Boss 的受击动画
+	# 命中：只有攻击色（非白色）才做轻微闪光；去掉震屏，减少刺激
+	if flash_layer and proj_color != Color.WHITE:
+		flash_layer.modulate = Color(proj_color.r, proj_color.g, proj_color.b, 0.18)
+		var flash_t = create_tween()
+		flash_t.tween_property(flash_layer, "modulate:a", 0, 0.25).set_trans(Tween.TRANS_SINE)
+		flash_t.finished.connect(func(): flash_layer.modulate = Color(1, 0, 0, 0))
+	
 	if boss_node.has_method("play_hit"):
 		boss_node.play_hit()
 	
-	# 轻微震屏，增加打击感
-	shake_screen(5.0, 0.1)
+	# 冷却 0.25 秒后才允许下一次投掷物
+	await get_tree().create_timer(0.25).timeout
+	_attack_anim_busy = false
 
 # --- 3. 连招特效 (Combo Flash) ---
 func play_combo_flash():

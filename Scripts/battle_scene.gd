@@ -69,8 +69,8 @@ var hydra_head_damage_this_turn = 0
 var spider_shuffle_used = false
 var hedgehog_turns_left = 3
 var hedgehog_combo_met = false
-var monkey_locked_slot = -1
-var monkey_locked_group = ""
+var monkey_surveillance_stacks = 0  # 本回合打出的 Emoji 数量（监控蓄力）
+var monkey_combo_count = 0          # 本场战斗已触发的 Combo 次数
 var enemy_damage_bonus = 0
 var player_damage_multiplier = 1.0
 var battle_ap_bonus_applied = false
@@ -325,29 +325,6 @@ func _get_emoji_color_group(emoji: String) -> String:
 		return "yellow"
 	return "white"
 
-func _get_monkey_lock_requirement() -> Dictionary:
-	var groups = [
-		{"group": "red", "label": "🔥"},
-		{"group": "blue", "label": "💧"},
-		{"group": "yellow", "label": "📊"},
-		{"group": "white", "label": "⚪"}
-	]
-	return groups[randi() % groups.size()]
-
-func _matches_lock_requirement(emoji: String) -> bool:
-	return _get_emoji_color_group(emoji) == monkey_locked_group
-
-func _get_monkey_requirement_label() -> String:
-	match monkey_locked_group:
-		"red":
-			return "🔥"
-		"blue":
-			return "💧"
-		"yellow":
-			return "📊"
-		"white":
-			return "⚪"
-	return "?"
 
 func hedgehog_init():
 	hedgehog_turns_left = 3
@@ -727,9 +704,7 @@ func start_player_turn():
 	else:
 		poison_heal_inverted = false
 	if "监控猿" in enemy_name:
-		var lock = _get_monkey_lock_requirement()
-		monkey_locked_group = lock.group
-		monkey_locked_slot = randi() % 3
+		monkey_surveillance_stacks = 0
 		_update_enemy_intent()
 	
 	# 处理多回合状态
@@ -1125,43 +1100,13 @@ func _add_status_badge(container: Control, text: String, color: Color, p_tooltip
 func update_emoji_slots():
 	for child in %EmojiSlot.get_children():
 		child.queue_free()
-	if "监控猿" in enemy_name_label.text and monkey_locked_slot >= 0:
-		for i in range(3):
-			var panel = PanelContainer.new()
-			panel.custom_minimum_size = Vector2(54, 54)
-			var style = StyleBoxFlat.new()
-			style.set_corner_radius_all(8)
-			if i == monkey_locked_slot:
-				style.bg_color = Color(1, 0.85, 0.4, 0.35)
-				style.border_width_left = 2
-				style.border_width_right = 2
-				style.border_width_top = 2
-				style.border_width_bottom = 2
-				style.border_color = Color(1, 0.6, 0.1)
-				panel.tooltip_text = "监控要求：%s" % _get_monkey_requirement_label()
-			else:
-				style.bg_color = Color(0, 0, 0, 0.12)
-			panel.add_theme_stylebox_override("panel", style)
-
-			var label = Label.new()
-			label.text = current_sequence[i] if i < current_sequence.size() else ""
-			label.custom_minimum_size = Vector2(54, 54)
-			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			label.add_theme_font_size_override("font_size", 32)
-			panel.add_child(label)
-
-			if i == monkey_locked_slot:
-				var req_label = Label.new()
-				req_label.text = _get_monkey_requirement_label()
-				req_label.add_theme_font_size_override("font_size", 18)
-				req_label.add_theme_color_override("font_color", Color.ORANGE)
-				req_label.position = Vector2(34, 0)
-				panel.add_child(req_label)
-
-			%EmojiSlot.add_child(panel)
-		return
-
+	# 监控猿：显示蓄力层数提示
+	if "监控猿" in enemy_name_label.text:
+		var stacks_label = Label.new()
+		stacks_label.text = "👁️ 监控蓄力: %d" % monkey_surveillance_stacks
+		stacks_label.add_theme_font_size_override("font_size", 20)
+		stacks_label.add_theme_color_override("font_color", Color.ORANGE)
+		%EmojiSlot.add_child(stacks_label)
 	for emoji in current_sequence:
 		var label = Label.new()
 		label.text = emoji
@@ -1174,12 +1119,10 @@ func check_combos():
 	for e in current_sequence:
 		seq_counts[e] = seq_counts.get(e, 0) + 1
 	
-	if "监控猿" in enemy_name_label.text and monkey_locked_slot >= 0:
-		if current_sequence.size() > monkey_locked_slot:
-			var locked_emoji = current_sequence[monkey_locked_slot]
-			if not _matches_lock_requirement(locked_emoji):
-				spawn_floating_number("锁定失败", false, %BossSprite.global_position + Vector2(0, -120), Color.ORANGE)
-				return
+	# 监控猿：每打出一张 Emoji 蓄力 +1
+	if "监控猿" in enemy_name_label.text:
+		monkey_surveillance_stacks += 1
+		update_emoji_slots()
 
 	if "蜘蛛" in enemy_name_label.text and not spider_shuffle_used and current_sequence.size() == 3:
 		if randf() < 0.5:
@@ -2036,10 +1979,8 @@ func _update_enemy_intent():
 		intent_description.text = "造成伤害并往手牌塞入【无意义文档】"
 	elif "监控猿" in enemy.name:
 		intent_icon.text = "👁️"
-		var slot_text = "第%d格" % (monkey_locked_slot + 1) if monkey_locked_slot >= 0 else "随机"
-		var req_text = _get_monkey_requirement_label()
-		intent_text.text = "%s=%s" % [slot_text, req_text]
-		intent_description.text = "指定位置必须填入指定类型Emoji"
+		intent_text.text = "蓄力 %d" % monkey_surveillance_stacks
+		intent_description.text = "每打出1张Emoji蓄力+1；蓄力越高下回合攻击越强"
 	elif "蜘蛛" in enemy.name:
 		intent_icon.text = "🕸️"
 		intent_text.text = "20"
