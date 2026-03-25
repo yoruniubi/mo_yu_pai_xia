@@ -79,6 +79,11 @@ var first_card_free_used = false
 # 当前激活的连招池
 var active_combos = {}
 
+# 敌方行动卡组（用于区分普攻/技能并可视化）
+var enemy_action_deck: Array = []
+var enemy_action_index: int = 0
+var current_enemy_action: Dictionary = {}
+
 # 扇形布局参数
 const FAN_RADIUS = 800.0      # 扇形圆心距离
 const MAX_FAN_ANGLE = 30.0    # 最大展开角度（度）
@@ -119,11 +124,16 @@ func _ready():
 	# 初始化意图显示
 	_update_enemy_intent()
 	%BossSprite.texture = load(enemy.image)
+	if %BossSprite.has_method("set_enemy_name"):
+		%BossSprite.set_enemy_name(enemy.name)
 	if "九头蛇" in enemy.name:
 		hydra_heads = 3
 		hydra_head_hp = int(ceil(enemy.hp / 3.0))
 	if "刺猬" in enemy.name:
 		hedgehog_init()
+	_init_enemy_action_deck(enemy.name)
+	_roll_next_enemy_action(false)
+	_update_enemy_intent()
 	
 	# 4.1 事件影响
 	enemy_damage_bonus = GameManager.next_battle_enemy_damage_bonus
@@ -186,6 +196,26 @@ func _setup_battle_ui_buttons():
 	deck_btn.custom_minimum_size = Vector2(150, 44)
 	add_child(deck_btn)
 	deck_btn.pressed.connect(func(): GameManager.show_deck_viewer(self))
+
+	# 敌方卡组按钮
+	var enemy_deck_btn = Button.new()
+	enemy_deck_btn.text = " 🧾 敌方卡组 "
+	enemy_deck_btn.name = "EnemyDeckButton"
+	enemy_deck_btn.add_theme_stylebox_override("normal", _create_style("#fdf5e6", 15, 2))
+	enemy_deck_btn.add_theme_stylebox_override("hover", _create_style("#8fb9aa", 15, 4))
+	enemy_deck_btn.add_theme_stylebox_override("pressed", _create_style("#7aa899", 15, 0))
+	enemy_deck_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	enemy_deck_btn.focus_mode = Control.FOCUS_NONE
+	enemy_deck_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+	enemy_deck_btn.add_theme_font_size_override("font_size", 20)
+	enemy_deck_btn.custom_minimum_size = Vector2(150, 45)
+	if has_node("%ComboDirectoryButton"):
+		var combo_btn = %ComboDirectoryButton
+		enemy_deck_btn.position = combo_btn.position + Vector2(0, combo_btn.custom_minimum_size.y + 8)
+	else:
+		enemy_deck_btn.position = Vector2(get_viewport_rect().size.x - 165, 68)
+	add_child(enemy_deck_btn)
+	enemy_deck_btn.pressed.connect(_show_enemy_deck_viewer)
 
 	var back_btn = Button.new()
 	back_btn.text = " ↩ 放弃挑战 "
@@ -385,9 +415,10 @@ func setup_button_style():
 		var combo_btn = %ComboDirectoryButton
 		combo_btn.pressed.connect(show_combo_directory)
 		# 统一按钮风格
-		var cb_normal = _create_style("#fdf5e6", 10, 2)
-		var cb_hover = _create_style("#8fb9aa", 10, 4)
-		var cb_pressed = _create_style("#7aa899", 10, 0)
+		# 与主菜单“开始/教程/退出”三按钮风格一致
+		var cb_normal = _create_style("#fdf5e6", 30, 8)
+		var cb_hover = _create_style("#a8d8ea", 30, 12)
+		var cb_pressed = _create_style("#7fb5c9", 30, 0)
 		combo_btn.add_theme_stylebox_override("normal", cb_normal)
 		combo_btn.add_theme_stylebox_override("hover", cb_hover)
 		combo_btn.add_theme_stylebox_override("pressed", cb_pressed)
@@ -532,7 +563,7 @@ func enemy_turn():
 			print("由于未打出早会卡，受到 %d 点伤害" % penalty)
 			apply_damage_to_hero(penalty)
 	
-	# 根据敌人类型决定演出动画
+	# 根据“敌方行动卡”决定演出动画
 	var anim_type = _get_enemy_anim_type(enemy_name)
 	if %BossSprite.has_method("play_" + anim_type):
 		%BossSprite.call("play_" + anim_type)
@@ -616,13 +647,18 @@ func enemy_turn():
 	if hero_hp <= 0:
 		show_game_over()
 		return
+
+	_roll_next_enemy_action()
 		
 	start_player_turn()
 
 # 根据敌人当前回合意图类型决定播放哪种动画
 func _get_enemy_anim_type(enemy_name: String) -> String:
-	# 审计犬/监控猿：发布规则/锁定 → 特殊
-	if "审计" in enemy_name or "监控" in enemy_name:
+	if not current_enemy_action.is_empty() and current_enemy_action.has("anim"):
+		return current_enemy_action.anim
+
+	# 审计犬：规则审查属于技能演出
+	if "审计" in enemy_name:
 		return "special"
 	# 树懒/蜘蛛：塞垃圾卡 → 特殊
 	if "树懒" in enemy_name or "蜘蛛" in enemy_name:
@@ -632,7 +668,7 @@ func _get_enemy_anim_type(enemy_name: String) -> String:
 		if hydra_head_damage_this_turn < hydra_head_hp:
 			return "charge"
 		else:
-			return "special"
+			return "attack"
 	# 毒蛇：反转回血 → 特殊
 	if "毒蛇" in enemy_name:
 		return "special"
@@ -642,13 +678,118 @@ func _get_enemy_anim_type(enemy_name: String) -> String:
 			return "enrage"
 		else:
 			return "attack"
-	# CEO 低血量狂暴
-	if "CEO" in enemy_name and enemy_hp < enemy_hp_bar.max_value * 0.4:
-		return "enrage"
-	# 浣熊/鹦鹉：干扰型 → 特殊
-	if "浣熊" in enemy_name or "鹦鹉" in enemy_name:
+	# CEO：每回合切形态，属于技能演出；低血量用狂暴
+	if "CEO" in enemy_name:
+		if enemy_hp < enemy_hp_bar.max_value * 0.4:
+			return "enrage"
 		return "special"
+	# 监控猿/浣熊/鹦鹉：当前回合仅执行普通攻击（其机制在其他时机触发）
+	if "监控" in enemy_name or "浣熊" in enemy_name or "鹦鹉" in enemy_name:
+		return "attack"
 	return "attack"
+
+
+func _init_enemy_action_deck(enemy_name: String) -> void:
+	enemy_action_deck.clear()
+	enemy_action_index = 0
+
+	if "CEO" in enemy_name:
+		enemy_action_deck = [
+			{"name":"KPI 考核", "type":"skill", "anim":"special", "icon":"📉", "text":"35", "desc":"技能：造成重压并切换形态"},
+			{"name":"高压追击", "type":"normal", "anim":"attack", "icon":"⚔️", "text":"35", "desc":"普攻：直接造成伤害"},
+			{"name":"管理威压", "type":"skill", "anim":"enrage", "icon":"👑", "text":"35", "desc":"技能：低血量更易进入狂暴演出"}
+		]
+	elif "九头蛇" in enemy_name:
+		enemy_action_deck = [
+			{"name":"多头撕咬", "type":"normal", "anim":"attack", "icon":"⚔️", "text":"25", "desc":"普攻：多头集火"},
+			{"name":"指标再生", "type":"skill", "anim":"charge", "icon":"🐲", "text":"25", "desc":"技能：未击破指标则回血"}
+		]
+	elif "树懒" in enemy_name:
+		enemy_action_deck = [
+			{"name":"流程压制", "type":"skill", "anim":"special", "icon":"📄", "text":"技能", "desc":"技能：塞入【无意义文档】并施压"},
+			{"name":"普通施压", "type":"normal", "anim":"attack", "icon":"⚔️", "text":"攻击", "desc":"普攻：直接造成伤害"}
+		]
+	elif "蜘蛛" in enemy_name:
+		enemy_action_deck = [
+			{"name":"虚假目标", "type":"skill", "anim":"special", "icon":"🕸️", "text":"技能", "desc":"技能：塞入【虚假目标】扰乱抽牌"},
+			{"name":"普通施压", "type":"normal", "anim":"attack", "icon":"⚔️", "text":"攻击", "desc":"普攻：直接造成伤害"}
+		]
+	elif "审计" in enemy_name:
+		enemy_action_deck = [
+			{"name":"合规审查", "type":"skill", "anim":"special", "icon":"🔍", "text":"技能", "desc":"技能：发布规则并在违规时追加伤害"},
+			{"name":"普通施压", "type":"normal", "anim":"attack", "icon":"⚔️", "text":"攻击", "desc":"普攻：直接造成伤害"}
+		]
+	elif "毒蛇" in enemy_name:
+		enemy_action_deck = [
+			{"name":"认知反转", "type":"skill", "anim":"special", "icon":"🐍", "text":"技能", "desc":"技能：将回血/减压效果反转"},
+			{"name":"普通施压", "type":"normal", "anim":"attack", "icon":"⚔️", "text":"攻击", "desc":"普攻：直接造成伤害"}
+		]
+	elif "鹦鹉" in enemy_name:
+		enemy_action_deck = [
+			{"name":"复读干扰", "type":"skill", "anim":"special", "icon":"🦜", "text":"技能", "desc":"技能：复读上回合符号干扰序列"},
+			{"name":"普通施压", "type":"normal", "anim":"attack", "icon":"⚔️", "text":"攻击", "desc":"普攻：直接造成伤害"}
+		]
+	elif "浣熊" in enemy_name:
+		enemy_action_deck = [
+			{"name":"顺手牵羊", "type":"skill", "anim":"special", "icon":"🦝", "text":"技能", "desc":"技能：有概率偷走你序列中的 Emoji"},
+			{"name":"普通施压", "type":"normal", "anim":"attack", "icon":"⚔️", "text":"攻击", "desc":"普攻：直接造成伤害"}
+		]
+	elif "监控猿" in enemy_name:
+		enemy_action_deck = [
+			{"name":"监控蓄力", "type":"skill", "anim":"special", "icon":"👁️", "text":"技能", "desc":"技能：根据你出牌逐步蓄力"},
+			{"name":"普通施压", "type":"normal", "anim":"attack", "icon":"⚔️", "text":"攻击", "desc":"普攻：直接造成伤害"}
+		]
+	elif "刺猬" in enemy_name:
+		enemy_action_deck = [
+			{"name":"死线倒计时", "type":"skill", "anim":"enrage", "icon":"⏰", "text":"技能", "desc":"技能：限时内未达标将触发高伤惩罚"},
+			{"name":"普通施压", "type":"normal", "anim":"attack", "icon":"⚔️", "text":"攻击", "desc":"普攻：连续造成伤害"}
+		]
+	else:
+		enemy_action_deck = [
+			{"name":"流程压制", "type":"skill", "anim":"special", "icon":"✨", "text":"技能", "desc":"技能：带额外机制（塞卡/规则/反转）"},
+			{"name":"普通施压", "type":"normal", "anim":"attack", "icon":"⚔️", "text":"攻击", "desc":"普攻：直接造成伤害"}
+		]
+
+
+func _roll_next_enemy_action(advance: bool = true) -> void:
+	if enemy_action_deck.is_empty():
+		current_enemy_action = {"name":"普通攻击", "type":"normal", "anim":"attack", "icon":"⚔️", "text":"攻击", "desc":"普攻"}
+		return
+	if advance:
+		enemy_action_index += 1
+	var idx = posmod(enemy_action_index, enemy_action_deck.size())
+	current_enemy_action = enemy_action_deck[idx]
+
+
+func _show_enemy_deck_viewer() -> void:
+	var dialog = AcceptDialog.new()
+	dialog.title = "敌方卡组"
+	dialog.ok_button_text = "关闭"
+	dialog.dialog_text = ""
+	dialog.min_size = Vector2i(680, 460)
+	add_child(dialog)
+
+	var text = RichTextLabel.new()
+	text.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	text.offset_left = 16
+	text.offset_top = 16
+	text.offset_right = -16
+	text.offset_bottom = -56
+	text.bbcode_enabled = true
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.scroll_active = true
+	text.add_theme_font_size_override("normal_font_size", 20)
+	text.add_theme_font_size_override("bold_font_size", 22)
+
+	var s = "[b]当前敌人：%s[/b]\n\n" % enemy_name_label.text
+	for i in range(enemy_action_deck.size()):
+		var card = enemy_action_deck[i]
+		var tag = "[普攻]" if card.get("type", "normal") == "normal" else "[技能]"
+		var pointer = "  ← 下回合" if i == posmod(enemy_action_index, max(1, enemy_action_deck.size())) else ""
+		s += "• %s %s  %s\n    %s%s\n\n" % [tag, card.get("name", "未知行动"), card.get("icon", ""), card.get("desc", ""), pointer]
+	text.text = s
+	dialog.add_child(text)
+	dialog.popup_centered_ratio(0.72)
 
 func inject_junk_card(type: String):
 	var junk_data = GameManager.junk_cards.get(type)
@@ -1940,65 +2081,48 @@ func apply_shield_to_hero(amount: int):
 
 func _update_enemy_intent():
 	var enemy = GameManager.get_current_enemy()
-	var base_dmg = 10 + (GameManager.current_level * 3)
 	
 	# 重置样式
 	intent_text.remove_theme_color_override("font_color")
 	intent_description.text = ""
-	
-	if "鹦鹉" in enemy.name:
-		intent_icon.text = "🦜"
-		intent_text.text = "复读"
-		intent_description.text = "锁定序列首位为上回合末尾符号"
-	elif "刺猬" in enemy.name:
-		intent_icon.text = "⏰"
-		intent_text.text = "4 x 3"
-		intent_description.text = "%d回合内未打出⌨️连招将受大伤" % hedgehog_turns_left
-	elif "浣熊" in enemy.name:
-		intent_icon.text = "🦝"
-		intent_text.text = "顺手牵羊"
-		intent_description.text = "打出2个Emoji后有概率偷走序列"
-	elif "审计" in enemy.name:
-		intent_icon.text = "🔍"
-		if compliance_rule.is_empty():
-			intent_text.text = "合规检查"
-			intent_description.text = "下回合将发布出牌限制规则"
-		elif compliance_rule.type == "ap_parity":
-			intent_text.text = "AP须%s" % ("偶数" if compliance_rule.value == "even" else "奇数")
-			intent_description.text = "不合规：老板回合追加 6 点伤害"
-		else:
-			intent_text.text = "颜色≤%d" % compliance_rule.value
-			intent_description.text = "不合规：老板回合追加 6 点伤害（白色不计）"
-	elif "毒蛇" in enemy.name:
-		intent_icon.text = "🐍"
-		intent_text.text = "认知反转"
-		intent_description.text = "所有回血/减压效果将变为伤害"
-	elif "树懒" in enemy.name:
-		intent_icon.text = "📄"
-		intent_text.text = "12"
-		intent_description.text = "造成伤害并往手牌塞入【无意义文档】"
-	elif "监控猿" in enemy.name:
-		intent_icon.text = "👁️"
-		intent_text.text = "蓄力 %d" % monkey_surveillance_stacks
-		intent_description.text = "每打出1张Emoji蓄力+1；蓄力越高下回合攻击越强"
-	elif "蜘蛛" in enemy.name:
-		intent_icon.text = "🕸️"
-		intent_text.text = "20"
-		intent_description.text = "造成伤害并塞入【虚假目标】"
-		intent_text.add_theme_color_override("font_color", Color.ORANGE_RED)
-	elif "九头蛇" in enemy.name:
-		intent_icon.text = "🐲"
-		intent_text.text = "25"
-		intent_description.text = "若本回合未击破指标，Boss将大幅回血"
-	elif "CEO" in enemy.name:
-		intent_icon.text = "👑"
-		intent_text.text = "35"
-		intent_description.text = "造成伤害并切换形态（狮/羊/蛇）"
-		intent_text.add_theme_color_override("font_color", Color.RED)
+
+	# 优先显示“敌方行动卡”对应意图（与敌方卡组一致）
+	if not current_enemy_action.is_empty():
+		intent_icon.text = current_enemy_action.get("icon", "⚔️")
+		intent_text.text = str(current_enemy_action.get("text", "攻击"))
+		intent_description.text = current_enemy_action.get("desc", "")
 	else:
+		var base_dmg = 10 + (GameManager.current_level * 3)
 		intent_icon.text = "⚔️"
 		intent_text.text = str(base_dmg)
 		intent_description.text = "准备发动一次普通攻击"
+
+	# 追加机制提示（不覆盖行动卡意图）
+	var notes: Array[String] = []
+	if "鹦鹉" in enemy.name:
+		notes.append("复读：锁定序列首位为上回合末尾符号")
+	if "刺猬" in enemy.name:
+		notes.append("倒计时：%d 回合内未打出⌨️连招将受大伤" % hedgehog_turns_left)
+	if "浣熊" in enemy.name:
+		notes.append("顺手牵羊：打出2个Emoji后有概率偷走序列")
+	if "审计" in enemy.name:
+		if compliance_rule.is_empty():
+			notes.append("合规规则将于本回合发布")
+		elif compliance_rule.type == "ap_parity":
+			notes.append("规则：AP须%s（违规追加伤害）" % ("偶数" if compliance_rule.value == "even" else "奇数"))
+		else:
+			notes.append("规则：颜色≤%d（白色不计，违规追加伤害）" % compliance_rule.value)
+	if "毒蛇" in enemy.name:
+		notes.append("认知反转：回血/减压会被反转")
+	if "监控猿" in enemy.name:
+		notes.append("监控蓄力：%d" % monkey_surveillance_stacks)
+	if "九头蛇" in enemy.name:
+		notes.append("若本回合未击破指标，Boss会回血")
+
+	if notes.size() > 0:
+		if intent_description.text != "":
+			intent_description.text += "\n"
+		intent_description.text += "；".join(notes)
 
 func spawn_floating_number(value: Variant, is_critical: bool, pos: Vector2, color: Color = Color.WHITE):
 	var fn = floating_number_scene.instantiate()

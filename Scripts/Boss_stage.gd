@@ -67,6 +67,10 @@ var first_card_free_used = false
 # 当前激活的连招池
 var active_combos = {}
 
+# 敌方行动卡组（Boss）
+var enemy_action_deck: Array = []
+var current_enemy_action: Dictionary = {}
+
 # 扇形布局参数 (同步 battle_scene)
 const FAN_RADIUS = 800.0
 const MAX_FAN_ANGLE = 30.0
@@ -100,8 +104,11 @@ func _ready() -> void:
 	enemy_hp = enemy.hp
 	enemy_hp_bar.max_value = enemy.hp
 	enemy_hp_bar.value = enemy_hp
+	_init_boss_action_deck()
 	_update_boss_intent()
 	%BossSprite.texture = load(enemy.image)
+	if %BossSprite.has_method("set_enemy_name"):
+		%BossSprite.set_enemy_name(enemy.name)
 	
 	# 初始 AP
 	current_ap = GameManager.max_ap
@@ -147,6 +154,45 @@ func _setup_battle_ui_buttons():
 	add_child(deck_btn)
 	deck_btn.pressed.connect(func(): GameManager.show_deck_viewer(self))
 
+	# 敌方卡组按钮
+	if not has_node("EnemyDeckButton"):
+		var enemy_deck_btn = Button.new()
+		enemy_deck_btn.text = " 🧾 敌方卡组 "
+		enemy_deck_btn.name = "EnemyDeckButton"
+		enemy_deck_btn.add_theme_stylebox_override("normal", _create_style("#fdf5e6", 15, 2))
+		enemy_deck_btn.add_theme_stylebox_override("hover", _create_style("#8fb9aa", 15, 4))
+		enemy_deck_btn.add_theme_stylebox_override("pressed", _create_style("#7aa899", 15, 0))
+		enemy_deck_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		enemy_deck_btn.focus_mode = Control.FOCUS_NONE
+		enemy_deck_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+		enemy_deck_btn.add_theme_font_size_override("font_size", 20)
+		enemy_deck_btn.custom_minimum_size = Vector2(150, 45)
+		if has_node("%ComboDirectoryButton"):
+			var combo_btn = %ComboDirectoryButton
+			enemy_deck_btn.position = combo_btn.position + Vector2(0, combo_btn.custom_minimum_size.y + 8)
+		else:
+			enemy_deck_btn.position = Vector2(get_viewport_rect().size.x - 165, 68)
+		add_child(enemy_deck_btn)
+		enemy_deck_btn.pressed.connect(_show_enemy_deck_viewer)
+
+	# 退出按钮（Boss 战内常驻，避免与结算层按钮混淆）
+	if not has_node("AbandonButton"):
+		var back_btn = Button.new()
+		back_btn.text = " ↩ 放弃挑战 "
+		back_btn.name = "AbandonButton"
+		back_btn.add_theme_stylebox_override("normal", _create_style("#fdf5e6", 15, 2))
+		back_btn.add_theme_stylebox_override("hover", _create_style("#ff6b6b", 15, 4))
+		back_btn.add_theme_stylebox_override("pressed", _create_style("#c0392b", 15, 0))
+		back_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		back_btn.focus_mode = Control.FOCUS_NONE
+		back_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+		back_btn.add_theme_color_override("font_hover_color", Color.WHITE)
+		back_btn.add_theme_font_size_override("font_size", 20)
+		back_btn.position = Vector2(12, 12)
+		back_btn.custom_minimum_size = Vector2(150, 44)
+		add_child(back_btn)
+		back_btn.pressed.connect(_on_back_to_menu_pressed)
+
 func setup_button_style():
 	var style_normal = _create_style("#4a4a4a", 10, 4)
 	var style_hover = _create_style("#666666", 10, 6)
@@ -191,9 +237,10 @@ func setup_button_style():
 		var combo_btn = %ComboDirectoryButton
 		combo_btn.pressed.connect(show_combo_directory)
 		# 统一按钮风格
-		var cb_normal = _create_style("#fdf5e6", 10, 2)
-		var cb_hover = _create_style("#8fb9aa", 10, 4)
-		var cb_pressed = _create_style("#7aa899", 10, 0)
+		# 与主菜单“开始/教程/退出”三按钮风格一致
+		var cb_normal = _create_style("#fdf5e6", 30, 8)
+		var cb_hover = _create_style("#a8d8ea", 30, 12)
+		var cb_pressed = _create_style("#7fb5c9", 30, 0)
 		combo_btn.add_theme_stylebox_override("normal", cb_normal)
 		combo_btn.add_theme_stylebox_override("hover", cb_hover)
 		combo_btn.add_theme_stylebox_override("pressed", cb_pressed)
@@ -1152,7 +1199,10 @@ func enemy_turn():
 		start_player_turn()
 		return
 
-	if %BossSprite.has_method("play_attack"):
+	var anim_type = _get_boss_anim_type()
+	if %BossSprite.has_method("play_" + anim_type):
+		%BossSprite.call("play_" + anim_type)
+	elif %BossSprite.has_method("play_attack"):
 		%BossSprite.play_attack()
 	
 	await get_tree().create_timer(0.5).timeout
@@ -1187,21 +1237,74 @@ func enemy_turn():
 		
 	start_player_turn()
 
+
+func _get_boss_anim_type() -> String:
+	if not current_enemy_action.is_empty() and current_enemy_action.has("anim"):
+		return current_enemy_action.anim
+
+	# 0: KPI 考核（规则/压制）→ 特殊
+	if current_phase == 0:
+		return "special"
+	# 1: 狼性文化（连击高压）→ 狂暴
+	if current_phase == 1:
+		return "enrage"
+	# 2: 谈谈梦想（吸血续航）→ 蓄力
+	if current_phase == 2:
+		return "charge"
+	return "attack"
+
+
+func _init_boss_action_deck() -> void:
+	enemy_action_deck = [
+		{"name":"KPI 考核", "type":"skill", "anim":"special", "icon":"📉", "text":"10", "desc":"技能：造成伤害并塞入【KPI考核】"},
+		{"name":"狼性文化", "type":"normal", "anim":"enrage", "icon":"🐺", "text":"5 x 4", "desc":"普攻：四次连续攻击"},
+		{"name":"谈谈梦想", "type":"skill", "anim":"charge", "icon":"💭", "text":"8", "desc":"技能：造成伤害并回复 30 点耐性"}
+	]
+
+
+func _show_enemy_deck_viewer() -> void:
+	var dialog = AcceptDialog.new()
+	dialog.title = "敌方卡组"
+	dialog.ok_button_text = "关闭"
+	dialog.dialog_text = ""
+	dialog.min_size = Vector2i(680, 460)
+	add_child(dialog)
+
+	var text = RichTextLabel.new()
+	text.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	text.offset_left = 16
+	text.offset_top = 16
+	text.offset_right = -16
+	text.offset_bottom = -56
+	text.bbcode_enabled = true
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.scroll_active = true
+	text.add_theme_font_size_override("normal_font_size", 20)
+	text.add_theme_font_size_override("bold_font_size", 22)
+
+	var s = "[b]当前敌人：%s[/b]\n\n" % enemy_name_label.text
+	for i in range(enemy_action_deck.size()):
+		var card = enemy_action_deck[i]
+		var tag = "[普攻]" if card.get("type", "normal") == "normal" else "[技能]"
+		var pointer = "  ← 当前意图" if i == current_phase else ""
+		s += "• %s %s  %s\n    %s%s\n\n" % [tag, card.get("name", "未知行动"), card.get("icon", ""), card.get("desc", ""), pointer]
+	text.text = s
+	dialog.add_child(text)
+	dialog.popup_centered_ratio(0.72)
+
 func _update_boss_intent():
 	intent_description.text = ""
-	match current_phase:
-		0: 
-			intent_icon.text = "📉"
-			intent_text.text = "10"
-			intent_description.text = "造成伤害并往牌组塞入【KPI 考核】"
-		1: 
-			intent_icon.text = "🐺"
-			intent_text.text = "5 x 4"
-			intent_description.text = "发动四次连续攻击，宣扬狼性文化"
-		2: 
-			intent_icon.text = "💭"
-			intent_text.text = "8"
-			intent_description.text = "造成伤害并为自己回复 30 点耐性"
+	if enemy_action_deck.is_empty():
+		_init_boss_action_deck()
+
+	if current_phase >= 0 and current_phase < enemy_action_deck.size():
+		current_enemy_action = enemy_action_deck[current_phase]
+	else:
+		current_enemy_action = enemy_action_deck[0]
+
+	intent_icon.text = current_enemy_action.get("icon", "⚔️")
+	intent_text.text = str(current_enemy_action.get("text", "攻击"))
+	intent_description.text = current_enemy_action.get("desc", "")
 
 func inject_junk_card(type: String):
 	var junk_data = GameManager.junk_cards.get(type)
