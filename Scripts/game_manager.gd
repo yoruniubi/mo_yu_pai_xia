@@ -670,7 +670,7 @@ var evolution_data = {
 			"B": {"name": "爆破流", "description": "强化 💣 效果，炸弹基础伤害更高", "card": {"name": "重型松果", "emoji": "💣", "cost": 2, "type": "attack_bomb", "value": 20, "description": "造成 20 伤害。每层火大额外+5"}}
 		},
 		"8": {
-			"A": {"name": "红莲地狱", "description": "终极火系爆发", "card": {"name": "大过滤器", "emoji": "☀️", "cost": 2, "type": "ultimate_fire_filter", "value": 2, "description": "消灭非火手牌并立刻爆发伤害；每消灭 1 张，火大 +1、火伤翻倍 +1（至少触发一次）"}}
+			"A": {"name": "红莲地狱", "description": "终极火系爆发", "card": {"name": "大过滤器", "emoji": "☀️", "cost": 2, "type": "ultimate_fire_filter", "value": 2, "description": "造成 30 基础伤害，引爆当前火大（每层+3）；消灭非火手牌各 +15 伤害 +2 火大"}}
 		}
 	},
 	"墨里 (Inkwell)": {
@@ -697,7 +697,7 @@ var evolution_data = {
 			"B": {"name": "待岗流", "description": "强化 ⏳ 防御效果", "card": {"name": "长期待岗", "emoji": "⏳", "cost": 1, "type": "wait_defense", "value": 40, "description": "下回合不行动，获得 40 点超高防御"}}
 		},
 		"8": {
-			"A": {"name": "行业黑名单", "description": "终极规则裁决", "card": {"name": "终极裁决", "emoji": "🚫", "cost": 3, "type": "ultimate_blacklist", "value": 2, "description": "永久封印老板意图，每回合造成其攻击力 2 倍的伤害"}}
+			"A": {"name": "行业黑名单", "description": "终极规则裁决", "card": {"name": "终极裁决", "emoji": "🚫", "cost": 3, "type": "ultimate_blacklist", "value": 2, "description": "封印老板 3 回合，期间无法行动且每回合受罚 20 点违约金；封印到期后自动解除"}}
 		}
 	}
 }

@@ -537,11 +537,23 @@ func enemy_turn():
 		update_status_display()
 		await get_tree().create_timer(0.4).timeout
 
-	# 苏珊终极进化：黑名单逻辑
+	# 苏珊终极进化：黑名单逻辑（限时3回合）
 	if has_meta("boss_blacklisted"):
-		var penalty = 20 # 基础违约金
+		var turns_left = get_meta("blacklist_turns", 1)
+		turns_left -= 1
+		var penalty = 20 # 每回合违约金
 		apply_damage_to_enemy(penalty)
-		spawn_floating_number("违约金: %d" % penalty, false, %BossSprite.global_position, Color.BLACK)
+		if turns_left <= 0:
+			# 封印到期，解除黑名单
+			remove_meta("boss_blacklisted")
+			if has_meta("blacklist_turns"): remove_meta("blacklist_turns")
+			spawn_floating_number("黑名单到期！违约金: %d" % penalty, true, %BossSprite.global_position, Color.DARK_ORANGE)
+			_update_enemy_intent()
+		else:
+			set_meta("blacklist_turns", turns_left)
+			spawn_floating_number("违约金: %d (剩余%d回合)" % [penalty, turns_left], false, %BossSprite.global_position, Color.BLACK)
+			# 更新意图显示剩余回合
+			intent_text.text = "封印(%d回合)" % turns_left
 		await get_tree().create_timer(0.8).timeout
 		start_player_turn()
 		return
@@ -828,6 +840,9 @@ func start_player_turn():
 	hydra_head_damage_this_turn = 0
 	spider_shuffle_used = false
 	first_card_free_used = false
+	# 回合切换后失效：仅本回合生效的莱奥终极 0 费状态
+	if has_meta("ultimate_vision_free_cost"):
+		remove_meta("ultimate_vision_free_cost")
 	if has_meta("cancel_played_this_turn"):
 		remove_meta("cancel_played_this_turn")
 	
@@ -1001,6 +1016,10 @@ func draw_card(specific_data: Dictionary = {}):
 		new_card.card_data = draw_pile.pop_back()
 	else:
 		new_card.card_data = specific_data.duplicate()
+
+	# 对齐 evolution_data：莱奥终极期间，本回合抽到的牌也显示为 0 费
+	if has_meta("ultimate_vision_free_cost"):
+		new_card.card_data["cost"] = 0
 	
 	hand_container.add_child(new_card)
 	new_card.scale = Vector2(0.75, 0.75)
@@ -1072,6 +1091,11 @@ func _on_card_played(card_node):
 	if GameManager.first_card_free and not first_card_free_used:
 		cost = 0
 		first_card_free_used = true
+
+	# 对齐 evolution_data：莱奥 8 级终极（ultimate_vision）= 本回合所有卡牌 0 消耗
+	# 必须放在费用修正末尾，确保不被 KPI/其他修正覆写
+	if has_meta("ultimate_vision_free_cost"):
+		cost = 0
 	
 	if current_ap < cost:
 		var t = create_tween()
@@ -1889,13 +1913,18 @@ func execute_card_effect(data: Dictionary):
 					c.queue_free()
 					discarded_count += 1
 			update_hand_layout()
-			var boost = max(1, discarded_count)
-			enemy_fire_stacks += boost
-			apply_damage_to_enemy(12 + discarded_count * 6)
+			# 重设计：即使手牌没有非火系牌也有强力单卡效果
+			# 基础伤害 30，每消灭一张非火牌额外 +15 伤害 +2 火大
+			# 同时引爆现有火大层数：每层额外 +3 伤害
+			var fire_bonus_dmg = enemy_fire_stacks * 3
+			var fire_boost = 2 + discarded_count * 2
+			enemy_fire_stacks += fire_boost
+			var total_fire_dmg = 30 + discarded_count * 15 + fire_bonus_dmg
+			apply_damage_to_enemy(total_fire_dmg)
 			if not has_meta("fire_multiplier"):
 				set_meta("fire_multiplier", 1.0)
-			set_meta("fire_multiplier", get_meta("fire_multiplier") + boost)
-			spawn_floating_number("FIRE BOOST x%d" % boost, true, hero_sprite.global_position + Vector2(0, -100), Color.RED)
+			set_meta("fire_multiplier", get_meta("fire_multiplier") + fire_boost)
+			spawn_floating_number("INFERNO +%d" % fire_boost, true, hero_sprite.global_position + Vector2(0, -100), Color.ORANGE_RED)
 		"ultimate_void":
 			var reduction = int(enemy_hp_bar.max_value * 0.2)
 			enemy_hp_bar.max_value -= reduction
@@ -1905,25 +1934,25 @@ func execute_card_effect(data: Dictionary):
 			enemy_atk_reduction += 5
 			spawn_floating_number("VOID", true, %BossSprite.global_position, Color.PURPLE)
 		"ultimate_vision":
+			# 对齐 evolution_data（莱奥 8 级）：爆发记录数值 + 本回合所有卡牌 0 消耗
 			var base = max(20, recorded_data_value)
 			recorded_data_value = base
 			apply_damage_to_enemy(base)
-			cost_reduction_active = true
+			set_meta("ultimate_vision_free_cost", true)
 			for c in hand_cards:
 				c.card_data["cost"] = 0
 				c.update_ui()
-			current_ap += 2
-			for i in range(2):
-				draw_card()
 			spawn_floating_number("VISIONARY", true, hero_sprite.global_position, Color.GOLD)
 		"ultimate_blacklist":
+			# 限时3回合封印：设置倒计时，每回合递减
 			set_meta("boss_blacklisted", true)
+			set_meta("blacklist_turns", 3)
 			intent_icon.text = "🚫"
-			intent_text.text = "已封印"
-			intent_description.text = "老板已被列入黑名单，无法行动且每回合受罚"
+			intent_text.text = "封印(3回合)"
+			intent_description.text = "老板被列入黑名单3回合，无法行动且每回合受罚20点"
 			apply_damage_to_enemy(20)
 			apply_shield_to_hero(15)
-			spawn_floating_number("BLACKLISTED", true, %BossSprite.global_position, Color.BLACK)
+			spawn_floating_number("BLACKLISTED (3T)", true, %BossSprite.global_position, Color.BLACK)
 
 func apply_damage_to_enemy(amount: int):
 	if is_battle_over: return
