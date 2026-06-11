@@ -15,27 +15,27 @@ description = "重新定义卡牌属性，复制敌人技能，根据对手弱�
 card_pool = Array[Dictionary]([{
 "cost": 1,
 "description": "造成 6 点伤害，并记录本次伤害值",
-"emoji": "📊",
+"emoji": "📝",
 "name": "虚假报表",
 "type": "attack_then_record",
 "value": 6
 }, {
 "cost": 2,
 "description": "造成 15 点伤害；若有记录值则额外释放记录值",
-"emoji": "📈",
+"emoji": "💹",
 "name": "指数增长",
 "type": "attack_plus_release",
 "value": 15
 }, {
 "cost": 1,
 "description": "削弱敌人的防御，持续到回合结束",
-"emoji": "📉",
+"emoji": "⬇️",
 "name": "趋势下滑",
 "type": "debuff_def",
 "value": 5
 }, {
 "cost": 1,
-"description": "造成 20 伤害。抽 2 张牌。记录本次伤害。",
+"description": "造成 20 伤害。抽 3 张牌。记录本次伤害。回复 1 AP。",
 "emoji": "📊",
 "name": "本命核心：图表",
 "type": "attack_draw_record",
@@ -43,14 +43,14 @@ card_pool = Array[Dictionary]([{
 }, {
 "cost": 1,
 "description": "记录当前护盾值的 2 倍作为下次伤害",
-"emoji": "📊",
+"emoji": "🥧",
 "name": "饼图陷阱",
 "type": "record_shield_dmg",
 "value": 2
 }, {
 "cost": 1,
 "description": "抽 1 张牌，回复 1 AP",
-"emoji": "📑",
+"emoji": "📋",
 "name": "季度报告",
 "type": "draw_ap",
 "value": 1

@@ -199,10 +199,6 @@ func setup_event():
 		match GameManager.pending_event_id:
 			"pantry":
 				setup_pantry()
-			"team_building":
-				setup_evolution(7)
-			"ultimate_evolution":
-				setup_evolution(8)
 			"desk_organizing":
 				setup_desk_organizing()
 			_:
@@ -462,78 +458,6 @@ func setup_pantry():
 			finish_event("你扔掉了一张不需要的卡牌，心情舒畅。")
 		)
 	)
-
-func setup_training():
-	title_label.text = "【技能培训】"
-	description_label.text = "HR 正在台上满怀激情地讲解着公司文化和职业规划，但台下的你只关心如何在这场漫长的会议中神不知鬼不觉地提升自己的‘生存技巧’。这是一次难得的学习机会——针对摸鱼而言。"
-	add_option("带薪补觉 (回复 40% 压力)", func():
-		var heal = int(GameManager.max_player_hp * 0.4)
-		GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + heal)
-		finish_event("你在培训课上偷偷补了个觉，压力大幅缓解。")
-	)
-	add_option("提升摸鱼效率 (最大 AP +1)", func():
-		GameManager.max_ap += 1
-		finish_event("你的摸鱼效率提升了！当前最大 AP: %d" % GameManager.max_ap)
-	)
-	add_option("增强抗压能力 (最大 HP +20)", func():
-		GameManager.max_player_hp += 20
-		GameManager.player_hp += 20
-		finish_event("你变得更能抗压了！当前最大 HP: %d" % GameManager.max_player_hp)
-	)
-	add_option("深造 Emoji (获得 2 张随机卡)", func():
-		var rewards = GameManager.get_random_reward_cards(2)
-		for r in rewards:
-			GameManager.player_deck.append(r)
-		finish_event("你学到了新的摸鱼技巧！")
-	)
-
-func setup_evolution(stage: int):
-	if not GameManager.selected_hero:
-		GameManager.finish_event_and_continue()
-		return
-		
-	var hero_name = GameManager.selected_hero.character_name
-	if not GameManager.evolution_data.has(hero_name):
-		finish_event("该角色暂无进化分支。")
-		return
-		
-	var data = GameManager.evolution_data[hero_name]
-	if not data.has(str(stage)):
-		finish_event("当前阶段无进化。")
-		return
-		
-	var options = data[str(stage)]
-	
-	if stage == 7:
-		title_label.text = "【核心进化】"
-		description_label.text = "在团建的深夜篝火旁，跳动的火焰倒映在你的瞳孔中。你突然领悟到，职场不仅仅是忍受，更是一种艺术。你体内的摸鱼能量开始剧烈波动，你的核心 Emoji 似乎要突破某种枷锁，迎来质的飞跃..."
-		
-		var opt1 = options["A"]
-		var opt2 = options["B"]
-		
-		add_option(opt1.name + ": " + opt1.description, func():
-			GameManager.evolution_path = "A"
-			GameManager.player_deck.append(opt1.card.duplicate())
-			GameManager.max_ap += 1
-			finish_event("核心进化！你选择了【" + opt1.name + "】，获得核心卡：【" + opt1.card.name + "】！最大 AP 提升至 %d。" % GameManager.max_ap)
-		)
-		add_option(opt2.name + ": " + opt2.description, func():
-			GameManager.evolution_path = "B"
-			GameManager.player_deck.append(opt2.card.duplicate())
-			GameManager.max_ap += 1
-			finish_event("核心进化！你选择了【" + opt2.name + "】，获得核心卡：【" + opt2.card.name + "】！最大 AP 提升至 %d。" % GameManager.max_ap)
-		)
-		return
-
-	if stage == 8:
-		title_label.text = "【终极进化】"
-		description_label.text = "强敌已倒下，你站在精英 BOSS 的残骸上。四周的空气仿佛因为你的觉醒而震颤，你终于触碰到了职场生存的终极真理。这一刻，你的核心 Emoji 将彻底蜕变，展现出足以震撼全宇宙的降维打击力量！"
-		var opt = options["A"]
-		add_option(opt.name + ": " + opt.description, func():
-			GameManager.player_deck.append(opt.card.duplicate())
-			GameManager.max_ap += 1
-			finish_event("终极进化完成！你获得终极卡：【" + opt.card.name + "】！最大 AP 提升至 %d。" % GameManager.max_ap)
-		)
 
 func setup_desk_organizing():
 	title_label.text = "【整理工位】"

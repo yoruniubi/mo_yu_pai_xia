@@ -409,14 +409,19 @@ func _show_card_picker(title: String, callback: Callable) -> void:
 		var emoji     = card_data.get("emoji",  "❓")
 		var name_     = card_data.get("name",   "未知卡牌")
 		var effect    = card_data.get("description", card_data.get("effect", ""))
-		var upgraded_suffix = " ✨" if card_data.get("upgraded", false) else ""
+		var is_upgraded = card_data.get("upgraded", false)
+		var upgraded_suffix = " ✨" if is_upgraded else ""
 
 		var btn       = Button.new()
-		btn.text      = "%s %s%s\n%s" % [emoji, name_, upgraded_suffix, effect]
+		# 升级模式下，已升级的卡牌不可再次升级，按钮禁用并标注。
+		var locked_for_upgrade = current_mode == "upgrade" and is_upgraded
+		var locked_suffix = "（已升级）" if locked_for_upgrade else ""
+		btn.text      = "%s %s%s%s\n%s" % [emoji, name_, upgraded_suffix, locked_suffix, effect]
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		_setup_button_style(btn, 24, false, Vector2(380, 170))
+		btn.disabled = locked_for_upgrade
 		var captured  = str(i)
 		btn.pressed.connect(func(): callback.call(captured))
 		work_grid.add_child(btn)

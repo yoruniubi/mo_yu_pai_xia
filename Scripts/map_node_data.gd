@@ -48,7 +48,7 @@ static func get_default_for_type(type: String) -> MapNodeData:
 			data.max_layer = 28
 			data.max_per_map = 4
 		"event":
-			data.display_name = "老板谈话"
+			data.display_name = "职场见闻"
 			data.icon = "💬"
 			data.fill_color = Color("#4ECDC4")
 			data.glow_color = Color("#7EDDD6")

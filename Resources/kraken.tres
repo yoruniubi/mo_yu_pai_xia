@@ -29,13 +29,13 @@ card_pool = Array[Dictionary]([{
 }, {
 "cost": 1,
 "description": "降低老板 3 点攻击力，持续 1 回合",
-"emoji": "🐙",
+"emoji": "🪸",
 "name": "章鱼缠绕",
 "type": "debuff_atk",
 "value": 3
 }, {
 "cost": 1,
-"description": "偷取敌人 10 点耐性值，转化为自身防御，并施加 3 层中毒",
+"description": "偷取敌人 8 点耐性值转为护盾，并施加 3 层中毒",
 "emoji": "🐙",
 "name": "本命核心：触手",
 "type": "attack_steal_poison",
@@ -56,15 +56,15 @@ card_pool = Array[Dictionary]([{
 "value": 5
 }, {
 "cost": 2,
-"description": "造成等于当前护盾值 × 1.5 的伤害（防御转化为攻击）",
-"emoji": "🌊",
+"description": "造成等于当前护盾值 × 1.5 的伤害（消耗护盾转化为攻击）",
+"emoji": "🪼",
 "name": "墨汁炮",
 "type": "shield_to_damage",
 "value": 15
 }, {
 "cost": 1,
 "description": "使敌人下一次攻击变为 0，并偷取 8 点攻击力转为护盾",
-"emoji": "🐙",
+"emoji": "🪱",
 "name": "触手缠绕",
 "type": "nullify_next_attack",
 "value": 8

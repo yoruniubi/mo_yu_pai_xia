@@ -38,6 +38,7 @@ var ap_drain_per_turn: int = 0
 var hp_drain_per_turn: int = 0
 var skip_next_battle: bool = false
 var has_seen_intro: bool = false  # 是否已看过开场过场动画
+var encountered_enemies: Array = []  # 本局已遇到的敌人ID列表,避免重复
 
 # 爬塔地图运行时状态。地图场景会频繁切到战斗/事件/商店等场景；
 # 这些数据必须保存在 GameManager，否则每次回到地图都会重新随机生成节点与路线。
@@ -230,6 +231,7 @@ func reset_run():
 	map_current_layer = 0
 	map_current_node_idx = -1
 	map_completed_layers.clear()
+	encountered_enemies.clear()
 	initialize_deck()
 	apply_meta_upgrades()
 
@@ -359,7 +361,7 @@ func _normalize_hero_core_card(hero_card: Dictionary) -> Dictionary:
 	var hero_card_name = hero_card.get("name", "")
 	# 动态更新核心卡描述以匹配最新的护盾/回血逻辑
 	if "触手" in hero_card_name:
-		hero_card["description"] = "偷取敌人 5 点耐性值，转化为自身防御。"
+		hero_card["description"] = "偷取敌人 8 点耐性值转为护盾，并施加 3 层中毒。"
 	elif "松果" in hero_card_name:
 		hero_card["description"] = "造成 5 伤害，获得 1 个随机 🔥 卡。"
 	elif "图表" in hero_card_name:
@@ -514,20 +516,12 @@ func load_current_level_scene():
 		tree.change_scene_to_file(scene_path)
 
 func advance_level():
-	var last_level = current_level
 	current_level += 1
-	if _should_trigger_event_after_level(last_level):
-		pending_event_id = _get_event_id_after_level(last_level)
-	elif _should_trigger_random_event_after_level(last_level):
-		pending_random_event_id = _get_random_event_id()
-		
 	if current_level > max_levels:
-		current_level = 1
 		var tree = Engine.get_main_loop() as SceneTree
 		if tree:
 			tree.change_scene_to_file("res://Scenes/main_menu.tscn")
 	else:
-		# 战斗/事件完成后，返回地图让玩家选择下一个节点
 		load_map_scene()
 
 func load_map_scene():
@@ -540,13 +534,6 @@ func finish_event_and_continue():
 	pending_event_id = ""
 	pending_random_event_id = ""
 	load_map_scene()
-
-func _should_trigger_random_event_after_level(level: int) -> bool:
-	# 固定事件关后不触发随机事件
-	if _get_event_id_after_level(level) != "":
-		return false
-	# 仅在完成战斗关卡后触发
-	return level >= 1 and level <= 9
 
 func _get_random_event_id() -> String:
 	var keys = random_events.keys()
@@ -562,21 +549,6 @@ func _get_random_event_id() -> String:
 	last_random_event_id = chosen
 	return chosen
 
-func _should_trigger_event_after_level(level: int) -> bool:
-	return _get_event_id_after_level(level) != ""
-
-func _get_event_id_after_level(level: int) -> String:
-	match level:
-		3:
-			return "pantry"
-		6:
-			return "team_building"
-		8:
-			return "ultimate_evolution"
-		9:
-			return "desk_organizing"
-		_:
-			return ""
 
 # 敌人数据 definition
 var enemies_data = {
@@ -699,36 +671,54 @@ var enemies_data = {
 }
 
 func get_random_normal_enemy() -> Dictionary:
-	"""根据当前关卡从对应阶段的普通敌人池中随机选择"""
+	"""根据当前关卡从对应阶段的普通敌人池中随机选择（避免重复）"""
 	var normal_enemy_ids: Array
 	if current_level <= 15:
-		# 第一阶段：ID 1-5
 		normal_enemy_ids = [1, 2, 3, 4, 5]
 	else:
-		# 第二阶段：ID 9-13
 		normal_enemy_ids = [9, 10, 11, 12, 13]
 	
-	var chosen_id = normal_enemy_ids[randi() % normal_enemy_ids.size()]
-	if enemies_data.has(chosen_id):
-		return enemies_data[chosen_id]
-	# 兜底
-	return enemies_data[1]
+	# 过滤已遇到的敌人
+	var available = normal_enemy_ids.filter(func(id): return not encountered_enemies.has(id))
+	if available.is_empty():
+		available = normal_enemy_ids  # 全遇过了就重置
+	
+	var chosen_id = available[randi() % available.size()]
+	encountered_enemies.append(chosen_id)
+	return enemies_data.get(chosen_id, enemies_data[1])
 
 func get_random_elite_enemy() -> Dictionary:
-	"""根据当前关卡从对应阶段的精英敌人池中随机选择"""
+	"""根据当前关卡从对应阶段的精英敌人池中随机选择（避免重复）"""
 	var elite_enemy_ids: Array
 	if current_level <= 15:
-		# 第一阶段：ID 6-7
 		elite_enemy_ids = [6, 7]
 	else:
-		# 第二阶段：ID 14-16
 		elite_enemy_ids = [14, 15, 16]
 	
-	var chosen_id = elite_enemy_ids[randi() % elite_enemy_ids.size()]
+	# 过滤已遇到的敌人
+	var available = elite_enemy_ids.filter(func(id): return not encountered_enemies.has(id))
+	if available.is_empty():
+		available = elite_enemy_ids
+	
+	var chosen_id = available[randi() % available.size()]
+	encountered_enemies.append(chosen_id)
+	return enemies_data.get(chosen_id, enemies_data[6])
+
+func get_random_boss_enemy() -> Dictionary:
+	"""根据当前关卡从对应阶段的 Boss 敌人池中随机选择"""
+	var boss_enemy_ids: Array
+	if current_level <= 15:
+		# 第一阶段 Boss：ID 8（部门经理野猪）
+		boss_enemy_ids = [8]
+	else:
+		# 第二阶段 Boss：ID 17（三头狮 CEO）
+		boss_enemy_ids = [17]
+	
+	var chosen_id = boss_enemy_ids[randi() % boss_enemy_ids.size()]
 	if enemies_data.has(chosen_id):
 		return enemies_data[chosen_id]
 	# 兜底
-	return enemies_data[6]
+	return enemies_data[17]
 
 func get_current_enemy():
 	if enemies_data.has(current_level):
@@ -886,7 +876,7 @@ var universal_cards: Array = [
 	{"name": "存档", "emoji": "💾", "cost": 1, "description": "本回合结束时不弃掉手牌", "type": "save_hand", "rarity": "epic"},
 	{"name": "摸鱼洗手", "emoji": "🧼", "cost": 1, "description": "移除自身所有负面状态", "type": "clean_status", "rarity": "epic"},
 	{"name": "拔电源", "emoji": "🔌", "cost": 2, "description": "造成 50 伤害，立即结束回合", "type": "pull_plug", "value": 50, "rarity": "epic"},
-	{"name": "裁员名单", "emoji": "📉", "cost": 2, "description": "消耗所有护盾，每点护盾造成 2 倍伤害", "type": "layoff_list", "value": 2, "rarity": "epic"}
+	{"name": "裁员名单", "emoji": "✂️", "cost": 2, "description": "消耗所有护盾，每点护盾造成 2 倍伤害", "type": "layoff_list", "value": 2, "rarity": "epic"}
 ]
 
 # ─────────────────────────────────────────
@@ -956,7 +946,7 @@ var junk_cards = {
 	},
 	"kpi": {
 		"name": "KPI 考核",
-		"emoji": "📉",
+		"emoji": "🎯",
 		"cost": 99, # 无法打出
 		"description": "无法打出。在手牌中时，所有 Combo 卡消耗 +1 AP。",
 		"type": "junk_kpi"

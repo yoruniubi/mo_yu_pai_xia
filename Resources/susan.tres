@@ -22,14 +22,14 @@ card_pool = Array[Dictionary]([{
 }, {
 "cost": 1,
 "description": "获得 12 护盾；若本回合已打出过 ❌，额外造成 20 点伤害",
-"emoji": "📋",
+"emoji": "✅",
 "name": "合规检查",
 "type": "shield_conditional_dmg",
 "value": 12
 }, {
 "cost": 2,
 "description": "消除老板当前的意图图标 (使其本回合发呆)",
-"emoji": "❌",
+"emoji": "🚫",
 "name": "面试拒信",
 "type": "cancel_intent",
 "value": 0
@@ -50,14 +50,14 @@ card_pool = Array[Dictionary]([{
 }, {
 "cost": 1,
 "description": "反弹本回合受到的第一次伤害",
-"emoji": "📋",
+"emoji": "👔",
 "name": "本命核心：简历",
 "type": "reflect_damage",
 "value": 1
 }, {
 "cost": 1,
 "description": "造成 12 伤害，老板下个意图伤害减半",
-"emoji": "🚫",
+"emoji": "🔒",
 "name": "拒绝入职",
 "type": "attack_debuff_atk_half",
 "value": 12

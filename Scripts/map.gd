@@ -1118,29 +1118,37 @@ func _navigate(nt: String, l: int) -> void:
 	_save_map_runtime_state()
  
 	match nt:
-		"battle", "elite":
+		"battle":
 			GameManager.pending_event_id = ""
 			GameManager.pending_random_event_id = ""
+			# 普通战斗：在 GameManager 上设置标记，battle_scene 会读取
+			GameManager.set_meta("next_battle_type", "normal")
+			GameManager.load_current_level_scene()
+
+		"elite":
+			GameManager.pending_event_id = ""
+			GameManager.pending_random_event_id = ""
+			GameManager.set_meta("next_battle_type", "elite")
+			GameManager.load_current_level_scene()
+
+		"miniboss", "boss":
+			GameManager.pending_event_id = ""
+			GameManager.pending_random_event_id = ""
+			GameManager.set_meta("next_battle_type", "boss")
+			# 小 Boss 在第一阶段（层14）锁定关卡为 8（部门经理野猪）
+			if nt == "miniboss":
+				GameManager.current_level = 8
 			GameManager.load_current_level_scene()
  
-		"miniboss":
-			# 小Boss：部门经理野猪（层14对应关卡8）
-			GameManager.current_level = 8
-			GameManager.pending_event_id = ""
-			GameManager.pending_random_event_id = ""
-			get_tree().change_scene_to_file("res://Scenes/boss_stage.tscn")
- 
-		"boss":
-			# 终Boss：CEO三头狮（层29对应关卡17）
-			GameManager.current_level = 17
-			GameManager.pending_event_id = ""
-			GameManager.pending_random_event_id = ""
-			get_tree().change_scene_to_file("res://Scenes/boss_stage.tscn")
- 
 		"evolution":
-			# 进化节点：战胜小Boss后在层13显示进化选择界面，完成后自动推进到小Boss层
-			# 这里直接进入进化选择
-			get_tree().change_scene_to_file("res://Scenes/upgrade_menu.tscn")
+			# 进化节点：摸鱼力上限 +1 + 选择进化分支获得专属卡牌
+			GameManager.max_ap += 1
+			_save_map_runtime_state()
+			_show_evolution_toast("⚡ 职场进化！摸鱼力上限 +1")
+			await get_tree().create_timer(1.0).timeout
+			# 根据所在地图层决定进化级别（13层 → 7级A/B；24层 → 8级A）
+			var evo_tier = "7" if l<= 13 else "8"
+			_show_evolution_choice(evo_tier)
  
 		"event":
 			# 没有固定事件就触发随机事件
@@ -1187,6 +1195,261 @@ func _scroll_to_current() -> void:
 	target_y = clampf(target_y, 0.0, max(0.0, _content.size.y - _scroll.size.y))
 	create_tween().tween_property(_scroll, "scroll_vertical", target_y, 0.8) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+# 进化分支选择界面：根据当前角色和级别（7/8）显示 evolution_data 中的进化选项
+func _show_evolution_choice(tier: String) -> void:
+	# 取出当前角色对应的进化数据
+	var hero_name = ""
+	if GameManager.selected_hero:
+		hero_name = GameManager.selected_hero.character_name
+	if hero_name == "" or not GameManager.evolution_data.has(hero_name):
+		_finish_evolution()
+		return
+
+	var hero_evos: Dictionary = GameManager.evolution_data[hero_name]
+	if not hero_evos.has(tier):
+		_finish_evolution()
+		return
+
+	var tier_options: Dictionary = hero_evos[tier]
+
+	# 创建覆盖层
+	var canvas = CanvasLayer.new()
+	canvas.layer = 120
+	canvas.name = "EvolutionLayer"
+	add_child(canvas)
+
+	var root = Control.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	canvas.add_child(root)
+
+	# 半透明奶油色背景（与主题一致）
+	var bg = ColorRect.new()
+	bg.color = Color("#F9F1DEEE")
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_child(bg)
+
+	var center = CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_child(center)
+
+	var vbox = VBoxContainer.new()
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 50)
+	center.add_child(vbox)
+
+	# 标题
+	var title = Label.new()
+	title.text = "🌟 选择你的进化分支 🌟"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 44)
+	title.add_theme_color_override("font_color", Color("#FFD93D"))
+	title.add_theme_color_override("font_outline_color", Color("#5D2D8E"))
+	title.add_theme_constant_override("outline_size", 8)
+	vbox.add_child(title)
+
+	var subtitle = Label.new()
+	subtitle.text = "%s · 进化等级 %s" % [hero_name, tier]
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.add_theme_font_size_override("font_size", 28)
+	subtitle.add_theme_color_override("font_color", Color("#6A4F3B"))
+	vbox.add_child(subtitle)
+
+	# 常驻显示：摸鱼力上限提升提示卡片
+	var ap_panel = PanelContainer.new()
+	var ap_style = StyleBoxFlat.new()
+	ap_style.bg_color = Color("#FFD93D")
+	ap_style.set_corner_radius_all(16)
+	ap_style.border_width_left = 3
+	ap_style.border_width_top = 3
+	ap_style.border_width_right = 3
+	ap_style.border_width_bottom = 5
+	ap_style.border_color = Color("#5D2D8E")
+	ap_style.content_margin_left = 24
+	ap_style.content_margin_right = 24
+	ap_style.content_margin_top = 12
+	ap_style.content_margin_bottom = 12
+	ap_panel.add_theme_stylebox_override("panel", ap_style)
+	ap_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(ap_panel)
+
+	var ap_label = Label.new()
+	ap_label.text = "⚡ 摸鱼力上限 +1 → 当前 %d" % GameManager.max_ap
+	ap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ap_label.add_theme_font_size_override("font_size", 30)
+	ap_label.add_theme_color_override("font_color", Color("#5D2D8E"))
+	ap_panel.add_child(ap_label)
+
+	# 分支卡片容器
+	var hbox = HBoxContainer.new()
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	hbox.add_theme_constant_override("separation", 40)
+	vbox.add_child(hbox)
+
+	# 收集按钮，方便选择后统一禁用
+	var all_buttons: Array[Button] = []
+
+	# 为每个分支构建一张卡片
+	var keys = tier_options.keys()
+	keys.sort()
+	for branch_key in keys:
+		var branch_data: Dictionary = tier_options[branch_key]
+		var card = _make_evolution_card(branch_key, branch_data, all_buttons, canvas)
+		hbox.add_child(card)
+
+
+func _make_evolution_card(branch_key: String, branch_data: Dictionary, all_buttons: Array[Button], canvas: CanvasLayer) -> Control:
+	var card = PanelContainer.new()
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color("#FDF5E6")
+	style.set_corner_radius_all(20)
+	style.border_width_left = 4
+	style.border_width_top = 4
+	style.border_width_right = 4
+	style.border_width_bottom = 6
+	style.border_color = Color("#D2B48C")
+	style.shadow_size = 8
+	style.shadow_color = Color(0, 0, 0, 0.4)
+	card.add_theme_stylebox_override("panel", style)
+	card.custom_minimum_size = Vector2(360, 540)
+
+	var card_vbox = VBoxContainer.new()
+	card_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	card_vbox.add_theme_constant_override("separation", 16)
+	card.add_child(card_vbox)
+
+	# 分支标识 (A / B)
+	var key_label = Label.new()
+	key_label.text = "[ %s ]" % branch_key
+	key_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	key_label.add_theme_font_size_override("font_size", 32)
+	key_label.add_theme_color_override("font_color", Color("#8B5A2B"))
+	card_vbox.add_child(key_label)
+
+	# 分支名称
+	var branch_name = Label.new()
+	branch_name.text = branch_data.get("name", "")
+	branch_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	branch_name.add_theme_font_size_override("font_size", 36)
+	branch_name.add_theme_color_override("font_color", Color("#5D2D8E"))
+	card_vbox.add_child(branch_name)
+
+	# 分支描述
+	var branch_desc = Label.new()
+	branch_desc.text = branch_data.get("description", "")
+	branch_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	branch_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	branch_desc.custom_minimum_size = Vector2(320, 0)
+	branch_desc.add_theme_font_size_override("font_size", 22)
+	branch_desc.add_theme_color_override("font_color", Color("#555"))
+	card_vbox.add_child(branch_desc)
+
+	# 分隔
+	var sep = HSeparator.new()
+	sep.custom_minimum_size = Vector2(0, 4)
+	card_vbox.add_child(sep)
+
+	# 卡牌预览
+	var card_data: Dictionary = branch_data.get("card", {})
+	if not card_data.is_empty():
+		var emoji_label = Label.new()
+		emoji_label.text = card_data.get("emoji", "")
+		emoji_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		emoji_label.add_theme_font_size_override("font_size", 80)
+		card_vbox.add_child(emoji_label)
+
+		var card_name_label = Label.new()
+		card_name_label.text = card_data.get("name", "")
+		card_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card_name_label.add_theme_font_size_override("font_size", 26)
+		card_name_label.add_theme_color_override("font_color", Color.BLACK)
+		card_vbox.add_child(card_name_label)
+
+		var card_desc_label = Label.new()
+		card_desc_label.text = card_data.get("description", "")
+		card_desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		card_desc_label.custom_minimum_size = Vector2(320, 0)
+		card_desc_label.add_theme_font_size_override("font_size", 20)
+		card_desc_label.add_theme_color_override("font_color", Color("#666"))
+		card_vbox.add_child(card_desc_label)
+
+	# 选择按钮
+	var btn = Button.new()
+	btn.text = "选择此分支"
+	btn.custom_minimum_size = Vector2(220, 70)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn.add_theme_font_size_override("font_size", 26)
+
+	var btn_normal = StyleBoxFlat.new()
+	btn_normal.bg_color = Color("#5D2D8E")
+	btn_normal.set_corner_radius_all(12)
+	btn_normal.border_width_bottom = 4
+	btn_normal.border_color = Color("#3A1A5")
+	btn.add_theme_stylebox_override("normal", btn_normal)
+	var btn_hover = btn_normal.duplicate()
+	btn_hover.bg_color = Color("#7A3CB0")
+	btn.add_theme_stylebox_override("hover", btn_hover)
+	btn.add_theme_color_override("font_color", Color.WHITE)
+	btn.focus_mode = Control.FOCUS_NONE
+
+	all_buttons.append(btn)
+	btn.pressed.connect(func():
+		# 防止重复选择
+		for b in all_buttons:
+			if is_instance_valid(b):
+				b.disabled = true
+		# 把进化卡加入牌库
+		if not card_data.is_empty():
+			GameManager.player_deck.append(card_data.duplicate())
+		GameManager.evolution_path = branch_key
+		# 关闭选择界面并回到地图
+		canvas.queue_free()
+		_show_evolution_toast("✨ 获得进化牌：%s" % card_data.get("name", branch_data.get("name", "")))
+		_finish_evolution()
+	)
+	card_vbox.add_child(btn)
+
+	return card
+
+
+func _finish_evolution() -> void:
+	# 进化完成，刷新地图状态并解锁继续前进
+	_calc_reachable()
+	_update_states()
+	_render_paths()
+	_update_marker()
+	_is_navigating = false
+
+
+# 进化节点的飘字提示
+func _show_evolution_toast(text: String) -> void:
+	var toast = Label.new()
+	toast.text = text
+	toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	toast.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	toast.add_theme_font_size_override("font_size", 48)
+	toast.add_theme_color_override("font_color", Color("#FFD93D"))
+	toast.add_theme_color_override("font_shadow_color", Color("#000000"))
+	toast.add_theme_constant_override("shadow_offset_x", 2)
+	toast.add_theme_constant_override("shadow_offset_y", 2)
+	toast.add_theme_constant_override("outline_size", 8)
+	toast.add_theme_color_override("font_outline_color", Color("#5D2D8E"))
+	toast.anchor_left = 0.5
+	toast.anchor_top = 0.5
+	toast.anchor_right = 0.5
+	toast.anchor_bottom = 0.5
+	toast.size = Vector2(800, 100)
+	toast.position = Vector2(-400, 200)
+	toast.z_index = 200
+	toast.mouse_filter = MOUSE_FILTER_IGNORE
+	add_child(toast)
+
+	var tw = create_tween().set_parallel(true)
+	tw.tween_property(toast, "position:y", -150.0, 1.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(toast, "modulate:a", 0.0, 1.2).set_delay(0.4)
+	tw.chain().tween_callback(toast.queue_free)
+
 
 # 工具函数
 func _anchors_full(n: Control) -> void:

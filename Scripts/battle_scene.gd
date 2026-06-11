@@ -13,9 +13,10 @@ extends Control
 @onready var energy_label = %EnergyLabel
 @onready var hand_container = %HandContainer
 @onready var end_turn_button = %EndTurnButton
-@onready var victory_layer = %VictoryLayer
-@onready var next_level_button = %NextLevelButton
-@onready var level_clear_label = %LevelClearLabel
+# boss_stage.tscn 使用 EndingLayer 而不是 VictoryLayer，统一兼容
+@onready var victory_layer = get_node_or_null("%VictoryLayer") if has_node("%VictoryLayer") else get_node_or_null("%EndingLayer")
+@onready var next_level_button = get_node_or_null("%NextLevelButton") if has_node("%NextLevelButton") else get_node_or_null("%BackToMenuButton")
+@onready var level_clear_label = get_node_or_null("%LevelClearLabel")
 # @onready var victory_sub_label = %VictorySubLabel
 @onready var game_over_layer = %GameOverLayer
 @onready var restart_button = %RestartButton
@@ -110,8 +111,17 @@ func _ready():
 
 	var screen_size = get_viewport_rect().size
 	_scale_factor = min(screen_size.x / 1080.0, screen_size.y / 1920.0)
-	# 1. 播放战斗音乐
-	var battle_bgm = preload("res://Assets/Music/Cubicle_Cruise.mp3")
+	
+	# 1. 根据战斗类型播放对应 BGM（在敌人选择之前判断）
+	var battle_bgm: AudioStream
+	var bgm_battle_type = GameManager.get_meta("next_battle_type", "normal") if GameManager.has_meta("next_battle_type") else "normal"
+	match bgm_battle_type:
+		"boss":
+			battle_bgm = preload("res://Assets/Music/Deadline_Duel.mp3")
+		"elite":
+			battle_bgm = preload("res://Assets/Music/elite_bgm.mp3")
+		_:
+			battle_bgm = preload("res://Assets/Music/Cubicle_Cruise.mp3")
 	BgmManager.play_music(battle_bgm)
 	
 	# 2. 初始化连招池
@@ -136,8 +146,17 @@ func _ready():
 	hero_hp_bar.max_value = GameManager.max_player_hp
 	hero_hp_bar.value = hero_hp
 	
-	# 4. 初始化敌人数据 - 从普通敌人池随机选择
-	var enemy = GameManager.get_random_normal_enemy()
+	# 4. 初始化敌人数据 - 根据 GameManager 的战斗类型标记选择
+	var battle_type = GameManager.get_meta("next_battle_type", "normal")
+	GameManager.remove_meta("next_battle_type")
+	
+	var enemy: Dictionary
+	if battle_type == "boss":
+		enemy = GameManager.get_random_boss_enemy()
+	elif battle_type == "elite":
+		enemy = GameManager.get_random_elite_enemy()
+	else:
+		enemy = GameManager.get_random_normal_enemy()
 	
 	# 设置敌人名称样式
 	enemy_name_label.add_theme_font_size_override("font_size", 34 * _scale_factor)
@@ -1379,9 +1398,7 @@ func _initialize_combos():
 func _on_card_played(card_node):
 	var data = card_node.card_data
 	var cost = data.get("cost", 1)
-	
-	if cost_reduction_active:
-		cost = max(0, cost - 1)
+	# 注意：团建干杯（cost_reduction）的 -1 已经直接写入 card_data.cost，这里不再二次扣减
 	
 	# KPI 考核影响：手牌中有 KPI 卡时，Combo 卡消耗 +1
 	var has_kpi = false
@@ -2176,11 +2193,20 @@ func execute_card_effect(data: Dictionary):
 			spawn_floating_number("PAYDAY!", false, hero_sprite.global_position + Vector2(0, -100), Color.GOLD)
 		"shield_generate_review":
 			apply_shield_to_hero(value)
-			discard_pile.append(GameManager.universal_cards[11].duplicate()) # 📑 周报汇总
+			# 通过 emoji 查找 📑 周报汇总，避免硬编码索引在 universal_cards 重排后失效
+			var review_card: Dictionary = {}
+			for c_data in GameManager.universal_cards:
+				if c_data.get("emoji", "") == "📑":
+					review_card = c_data.duplicate()
+					break
+			if not review_card.is_empty():
+				discard_pile.append(review_card)
 		"cost_reduction":
 			cost_reduction_active = true
+			# 直接改写所有手牌的 cost，UI 立即生效
 			for c in hand_cards:
-				c.update_ui() # 刷新 UI 显示新消耗
+				c.card_data["cost"] = max(0, c.card_data.get("cost", 1) - 1)
+				c.update_ui()
 		"save_hand":
 			save_hand_this_turn = true
 			spawn_floating_number("SAVED", false, hero_sprite.global_position + Vector2(0, -100), Color.GREEN)
@@ -2243,11 +2269,16 @@ func execute_card_effect(data: Dictionary):
 			enemy_poison_stacks += 3
 			spawn_floating_number("STOLEN!", false, %BossSprite.global_position + Vector2(0, -80), Color.PURPLE)
 		"shield_to_damage":
-			# Inkwell：墨汁炮 - 护盾值 × 1.5 转化为伤害
+			# Inkwell：墨汁炮 - 护盾值 × 1.5 转化为伤害，消耗护盾
 			var cannon_dmg = int(hero_shield * 1.5)
 			cannon_dmg = max(value, cannon_dmg) # 最低保底伤害
+			hero_shield = 0
 			apply_damage_to_enemy(cannon_dmg + GameManager.attack_bonus_flat)
 			spawn_floating_number("INK CANNON!", cannon_dmg > 25, %BossSprite.global_position + Vector2(0, -80), Color.DEEP_SKY_BLUE)
+			update_ui_values()
+		"junk_rambling":
+			# 废话连篇：打出无效果，占用一次出牌节奏
+			pass
 		"nullify_next_attack":
 			# Inkwell：触手缠绕 - 使敌人下一次攻击变为0 + 偷取攻击力转护盾
 			set_meta("nullify_next_enemy_attack", true)
@@ -2371,10 +2402,16 @@ func show_victory():
 	var _gold_reward = GameManager.grant_battle_gold(GameManager.current_level, false, false)
 	var _meta_points_reward = GameManager.grant_meta_points_for_battle(GameManager.current_level, false, false)
 	level_clear_label.text = "第 %d 关 已突破\n 🪙 +%d 摸鱼币  ·  ⭐ +%d 积分" % [GameManager.current_level, _gold_reward, _meta_points_reward]
-	# victory_sub_label.text = "老板由于无法忍受你的摸鱼行为，\n决定提前放你去下一站。\n\n本局已结算局外积分，可在主菜单升级中使用。"
+	
+	# 兼容 boss_stage.tscn 使用 EndingLayer 而非 VictoryLayer
+	var victory_node = get_node_or_null("%VictoryLayer")
+	if not victory_node:
+		victory_node = get_node_or_null("%EndingLayer")
+	
 	if GameManager.skip_rewards_battles > 0:
 		GameManager.skip_rewards_battles -= 1
-		victory_layer.visible = true
+		if victory_node:
+			victory_node.visible = true
 		return
 	get_tree().create_timer(0.5).timeout.connect(show_reward_selection)
 
