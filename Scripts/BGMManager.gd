@@ -7,8 +7,8 @@ var target_volume_db: float = -6.0
 func _ready():
 	# 初始音量设为静音，防止启动时爆音
 	volume_db = -80
-	if Engine.has_singleton("SettingsManager"):
-		target_volume_db = SettingsManager.settings.get("bgm_volume_db", target_volume_db)
+	# if Engine.has_singleton("SettingsManager"):
+	# 	target_volume_db = SettingsManager.settings.get("bgm_volume_db", target_volume_db)
 
 # 播放音乐的函数（带淡入效果）
 func play_music(music_stream: AudioStream):
@@ -22,8 +22,21 @@ func play_music(music_stream: AudioStream):
 	
 	# 设置新音乐并播放
 	stream = music_stream
+	if stream:
+		stream.loop = true
 	play()
 	fade_in()
+
+	# 兜底：finished 信号只在 loop=false 时触发，此处作为额外保障
+	if not is_connected("finished", _on_music_finished):
+		finished.connect(_on_music_finished)
+
+
+func _on_music_finished() -> void:
+	# loop 模式下 finished 通常不会触发，但若动态设置了 loop=false 则重播
+	if stream:
+		stream.loop = true
+		play()
 
 # 淡入逻辑
 func fade_in():

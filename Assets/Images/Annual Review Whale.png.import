@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://buwjlj2smq701"
-path="res://.godot/imported/wave.png-3109564fc3cef175f4473d85232c8c50.ctex"
+uid="uid://bqsht7lce8b1"
+path="res://.godot/imported/Annual Review Whale.png-231cf1f700550938beb0fab910d4c0c6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Images/wave.png"
-dest_files=["res://.godot/imported/wave.png-3109564fc3cef175f4473d85232c8c50.ctex"]
+source_file="res://Assets/Images/Annual Review Whale.png"
+dest_files=["res://.godot/imported/Annual Review Whale.png-231cf1f700550938beb0fab910d4c0c6.ctex"]
 
 [params]
 

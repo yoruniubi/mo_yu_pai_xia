@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://cgk2mdft7dleg"]
+[gd_scene load_steps=7 format=3 uid="uid://cgk2mdft7dleg"]
 
 [ext_resource type="Script" uid="uid://mvxu1t4coiqb" path="res://Scripts/Boss_stage.gd" id="1_boss"]
 [ext_resource type="Texture2D" uid="uid://dh80wgxhkfbws" path="res://Assets/Images/Boss.png" id="2_drvv0"]
@@ -10,71 +10,6 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_blur"]
 shader = ExtResource("6_blur")
 shader_parameter/lod = 2.0
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_bg"]
-bg_color = Color(0.1, 0.1, 0.1, 0.6)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 1, 1, 0.35)
-corner_radius_top_left = 5
-corner_radius_top_right = 5
-corner_radius_bottom_right = 5
-corner_radius_bottom_left = 5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_fill"]
-bg_color = Color(0.8, 0.2, 0.2, 1)
-corner_radius_top_left = 5
-corner_radius_top_right = 5
-corner_radius_bottom_right = 5
-corner_radius_bottom_left = 5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_slot_bg"]
-bg_color = Color(0, 0, 0, 0.4)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 1, 1, 0.2)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_intent_bg"]
-bg_color = Color(0.15, 0.15, 0.15, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.4, 0.4, 0.4, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-shadow_color = Color(0, 0, 0, 0.3)
-shadow_size = 4
-shadow_offset = Vector2(0, 2)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_intent_desc"]
-bg_color = Color(0.05, 0.05, 0.05, 0.7)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_intent_val"]
-bg_color = Color(0.8, 0.2, 0.2, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(1, 1, 1, 1)
-corner_radius_top_left = 15
-corner_radius_top_right = 15
-corner_radius_bottom_right = 15
-corner_radius_bottom_left = 15
 
 [node name="BossStage" type="Control"]
 layout_mode = 3
@@ -114,41 +49,6 @@ anchor_bottom = 0.2
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="ResignationBar" type="ProgressBar" parent="TopArea"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(400, 16)
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -200.0
-offset_top = 10.0
-offset_right = 200.0
-offset_bottom = 26.0
-grow_horizontal = 2
-max_value = 10.0
-step = 1.0
-value = 10.0
-show_percentage = false
-theme_override_styles/background = SubResource("StyleBoxFlat_hp_bg")
-
-[node name="ResignationLabel" type="Label" parent="TopArea/ResignationBar"]
-layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -50.0
-offset_right = 50.0
-offset_bottom = 23.0
-grow_horizontal = 2
-grow_vertical = 0
-theme_override_colors/font_color = Color(0.4, 0.4, 0.4, 1)
-theme_override_font_sizes/font_size = 18
-text = "离职进度"
-horizontal_alignment = 1
-
 [node name="EnemyInfo" type="VBoxContainer" parent="TopArea"]
 layout_mode = 1
 anchors_preset = 8
@@ -167,7 +67,6 @@ theme_override_constants/separation = 10
 [node name="EnemyName" type="Label" parent="TopArea/EnemyInfo"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 32
 text = "三头狮 CEO"
 horizontal_alignment = 1
 
@@ -175,8 +74,6 @@ horizontal_alignment = 1
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
-theme_override_styles/background = SubResource("StyleBoxFlat_hp_bg")
-theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")
 value = 100.0
 show_percentage = false
 
@@ -221,7 +118,6 @@ offset_right = 200.0
 offset_bottom = 19.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_slot_bg")
 
 [node name="EmojiSlot" type="HBoxContainer" parent="MiddleArea/ComboSlotArea"]
 unique_name_in_owner = true
@@ -270,16 +166,12 @@ alignment = 1
 [node name="HeroName" type="Label" parent="BottomArea/StatusBar/HeroStatusSmall/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 22
 text = "Hero Name"
 
 [node name="HeroHPBar" type="ProgressBar" parent="BottomArea/StatusBar/HeroStatusSmall/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(120, 18)
 layout_mode = 2
-theme_override_styles/background = SubResource("StyleBoxFlat_hp_bg")
-theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")
 value = 100.0
 show_percentage = false
 
@@ -302,8 +194,6 @@ offset_right = -40.0
 offset_bottom = 17.0
 grow_horizontal = 0
 grow_vertical = 2
-theme_override_colors/font_color = Color(0.2, 0.5, 0.8, 1)
-theme_override_font_sizes/font_size = 28
 text = "摸鱼能量：3 / 3"
 horizontal_alignment = 2
 
@@ -334,7 +224,6 @@ offset_right = -30.0
 offset_bottom = -88.0
 grow_horizontal = 0
 grow_vertical = 2
-theme_override_font_sizes/font_size = 28
 text = "结束回合"
 
 [node name="ComboDirectoryButton" type="Button" parent="."]
@@ -343,14 +232,13 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -180.0
-offset_top = 20.0
-offset_right = -30.0
-offset_bottom = 70.0
+offset_left = -270.0
+offset_top = 30.0
+offset_right = -45.0
+offset_bottom = 105.0
 grow_horizontal = 0
-theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
-theme_override_font_sizes/font_size = 22
-text = "连招一览"
+text = "📜 连招一览"
+
 
 [node name="IntentCard" type="Control" parent="."]
 unique_name_in_owner = true
@@ -371,7 +259,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_intent_bg")
 
 [node name="VBox" type="VBoxContainer" parent="IntentCard"]
 layout_mode = 1
@@ -388,9 +275,6 @@ theme_override_constants/separation = 2
 
 [node name="Title" type="Label" parent="IntentCard/VBox"]
 layout_mode = 2
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 2
-theme_override_font_sizes/font_size = 16
 text = "下回合意图"
 horizontal_alignment = 1
 
@@ -398,7 +282,6 @@ horizontal_alignment = 1
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_font_sizes/font_size = 56
 text = "⚔️"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -406,13 +289,10 @@ vertical_alignment = 1
 [node name="DescriptionPanel" type="PanelContainer" parent="IntentCard/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_intent_desc")
 
 [node name="IntentDescription" type="Label" parent="IntentCard/VBox/DescriptionPanel"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
-theme_override_font_sizes/font_size = 18
 text = "效果描述"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -424,7 +304,6 @@ offset_left = -12.0
 offset_top = -12.0
 offset_right = 28.0
 offset_bottom = 28.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_intent_val")
 
 [node name="IntentText" type="Label" parent="IntentCard/ValueContainer"]
 unique_name_in_owner = true
@@ -434,9 +313,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 2
-theme_override_font_sizes/font_size = 20
 text = "15"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -471,14 +347,11 @@ alignment = 1
 
 [node name="EndingLabel" type="Label" parent="EndingLayer/ColorRect/VBoxContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0, 1, 0, 1)
-theme_override_font_sizes/font_size = 78
 text = "恭喜：正式离职！"
 horizontal_alignment = 1
 
 [node name="EndingSubLabel" type="Label" parent="EndingLayer/ColorRect/VBoxContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 32
 text = "你成功喷飞了 CEO，
 走出了办公室的大门。
 自由的气息，真香。"
@@ -489,7 +362,6 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(220, 70)
 layout_mode = 2
 size_flags_horizontal = 4
-theme_override_font_sizes/font_size = 28
 text = "回到主界面"
 
 [node name="GameOverLayer" type="CanvasLayer" parent="."]
@@ -522,14 +394,11 @@ alignment = 1
 
 [node name="GameOverLabel" type="Label" parent="GameOverLayer/ColorRect/VBoxContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.2, 0.2, 1)
-theme_override_font_sizes/font_size = 66
 text = "过劳死..."
 horizontal_alignment = 1
 
 [node name="GameOverSubLabel" type="Label" parent="GameOverLayer/ColorRect/VBoxContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
 text = "你由于过度加班，
 倒在了工位上。
 离职申请还没交呢..."
@@ -540,7 +409,6 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(220, 70)
 layout_mode = 2
 size_flags_horizontal = 4
-theme_override_font_sizes/font_size = 28
 text = "重新开始"
 
 [node name="AnimationManager" type="Node" parent="."]

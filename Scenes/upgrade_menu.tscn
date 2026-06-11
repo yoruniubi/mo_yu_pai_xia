@@ -1,0 +1,126 @@
+[gd_scene load_steps=3 format=3 uid="uid://boskra2dllv6j"]
+
+[ext_resource type="Script" uid="uid://dvbpmoidp5kny" path="res://Scripts/upgrade_menu.gd" id="1_meta"]
+[ext_resource type="Texture2D" uid="uid://bpjtp1qxckj3p" path="res://Assets/Images/background.png" id="2_bg"]
+
+[node name="MetaUpgradeMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_meta")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.960784, 0.941176, 0.862745, 1)
+
+[node name="Backdrop" type="TextureRect" parent="."]
+modulate = Color(1, 1, 1, 0.18)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_bg")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -490.0
+offset_top = -835.0
+offset_right = 490.0
+offset_bottom = 824.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="RootVBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TitleRow" type="HBoxContainer" parent="Panel/RootVBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="Title" type="Label" parent="Panel/RootVBox/TitleRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_font_sizes/font_size = 38
+text = "局外升级"
+horizontal_alignment = 1
+
+[node name="PointsLabel" type="Label" parent="Panel/RootVBox/TitleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.49, 0.43, 0.35, 1)
+theme_override_font_sizes/font_size = 24
+text = "  |  积分：0"
+
+[node name="TabRow" type="HBoxContainer" parent="Panel/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="TabResource" type="Button" parent="Panel/RootVBox/TabRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 50)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+toggle_mode = true
+button_pressed = true
+text = "📦 资源类"
+
+[node name="TabStrategy" type="Button" parent="Panel/RootVBox/TabRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 50)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+toggle_mode = true
+text = "♟️ 策略类"
+
+[node name="TabSpecial" type="Button" parent="Panel/RootVBox/TabRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 50)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+toggle_mode = true
+text = "⚡ 特殊类"
+
+[node name="ScrollArea" type="ScrollContainer" parent="Panel/RootVBox"]
+custom_minimum_size = Vector2(980, 680)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="UpgradeGrid" type="GridContainer" parent="Panel/RootVBox/ScrollArea"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 18
+theme_override_constants/v_separation = 18
+columns = 3
+
+[node name="Footer" type="HBoxContainer" parent="Panel/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 30
+alignment = 1
+
+[node name="BackButton" type="Button" parent="Panel/RootVBox/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 60)
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "返回"

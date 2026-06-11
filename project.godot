@@ -19,12 +19,12 @@ config/icon="uid://cr1hykv8d0vpk"
 
 GameManager="*res://Scripts/game_manager.gd"
 BgmManager="*res://Scripts/BGMManager.gd"
-SettingsManager="*res://Scripts/settings_manager.gd"
+MetaProgressManager="*res://Scripts/upgrade_manager.gd"
 
 [display]
 
-window/size/viewport_width=720
-window/size/viewport_height=1280
+window/size/viewport_width=1080
+window/size/viewport_height=1920
 window/size/mode=3
 window/subwindows/embed_subwindows=false
 window/stretch/mode="canvas_items"

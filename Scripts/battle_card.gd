@@ -7,6 +7,7 @@ extends Control
 @onready var card_image = %CardImage
 @onready var emoji_label = %EmojiLabel
 @onready var highlight = %Highlight
+@onready var upgraded_badge = %UpgradedBadge
 
 # 模拟卡片数据结构 (后续可改为 Resource)
 var card_data: Dictionary = {}: 
@@ -37,6 +38,10 @@ func update_ui():
 	cost_label.text = str(card_data.get("cost", 1))
 	description_label.text = card_data.get("description", "")
 	
+	# 升级标记
+	if upgraded_badge:
+		upgraded_badge.visible = card_data.get("upgraded", false)
+
 	# 优先显示 Emoji
 	if card_data.has("emoji"):
 		emoji_label.text = card_data.emoji

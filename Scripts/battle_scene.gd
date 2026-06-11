@@ -16,6 +16,7 @@ extends Control
 @onready var victory_layer = %VictoryLayer
 @onready var next_level_button = %NextLevelButton
 @onready var level_clear_label = %LevelClearLabel
+# @onready var victory_sub_label = %VictorySubLabel
 @onready var game_over_layer = %GameOverLayer
 @onready var restart_button = %RestartButton
 @onready var status_container = %StatusContainer
@@ -32,6 +33,8 @@ var draw_pile = []
 var discard_pile = []
 var is_battle_over = false # 战斗结束锁，防止重复触发胜利/失败
 
+# 界面缩放
+var _scale_factor: float = 1.0
 # 战斗数值
 var hero_hp = 120
 var hero_shield = 0
@@ -71,10 +74,25 @@ var hedgehog_turns_left = 3
 var hedgehog_combo_met = false
 var monkey_surveillance_stacks = 0  # 本回合打出的 Emoji 数量（监控蓄力）
 var monkey_combo_count = 0          # 本场战斗已触发的 Combo 次数
+var monkey_locked_emoji_slot = false # 监控猿：下回合锁定 1 个 Emoji 序列槽
+var catfish_slipped_this_turn: bool = false  # 老油条鲶鱼：本回合是否已触发减伤
+var supervisor_sleeping: bool = false  # 摸鱼猫主管：是否在偷懒
+var whale_review_pressure: int = 0  # 年终总结鲸：累积考核压力
+var vulture_outsource_stacks: int = 0  # 外包秃鹫：外包层数
+var crab_jammed_count: int = 0  # 打印机螃蟹：已塞入的卡纸数
+var battle_turn_count = 0            # 敌方回合计数：用于 Boss 周期技能
+var printer_jam_cards_added = 0      # 打印机螃蟹：累计塞入卡纸数量
+var boar_phase_two = false           # 部门经理野猪：二阶段增伤标记
 var enemy_damage_bonus = 0
 var player_damage_multiplier = 1.0
 var battle_ap_bonus_applied = false
 var first_card_free_used = false
+
+# 局外升级相关计数
+var _meta_burst_ot_count: int = 0       # burst_ot：每3张牌后下一张费用归零
+var _meta_burst_ot_next_free: bool = false
+var _meta_grind_count: int = 0           # sp_grind：每5张牌触发一次额外连招检测
+# var _draft_discard_pending: bool = false # draft_start：回合结束额外丢弃1张
 
 # 当前激活的连招池
 var active_combos = {}
@@ -85,10 +103,13 @@ var enemy_action_index: int = 0
 var current_enemy_action: Dictionary = {}
 
 # 扇形布局参数
-const FAN_RADIUS = 800.0      # 扇形圆心距离
-const MAX_FAN_ANGLE = 30.0    # 最大展开角度（度）
+const FAN_RADIUS = 1000.0     # 扇形圆心距离
+const MAX_FAN_ANGLE = 35.0    # 最大展开角度（度）
 
 func _ready():
+
+	var screen_size = get_viewport_rect().size
+	_scale_factor = min(screen_size.x / 1080.0, screen_size.y / 1920.0)
 	# 1. 播放战斗音乐
 	var battle_bgm = preload("res://Assets/Music/Cubicle_Cruise.mp3")
 	BgmManager.play_music(battle_bgm)
@@ -115,8 +136,32 @@ func _ready():
 	hero_hp_bar.max_value = GameManager.max_player_hp
 	hero_hp_bar.value = hero_hp
 	
-	# 4. 初始化敌人数据
-	var enemy = GameManager.get_current_enemy()
+	# 4. 初始化敌人数据 - 从普通敌人池随机选择
+	var enemy = GameManager.get_random_normal_enemy()
+	
+	# 设置敌人名称样式
+	enemy_name_label.add_theme_font_size_override("font_size", 34 * _scale_factor)
+	enemy_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	
+	# 设置敌人血条样式
+	var hp_bg_style = StyleBoxFlat.new()
+	hp_bg_style.bg_color = Color(0.1, 0.1, 0.1, 0.6)
+	hp_bg_style.border_width_left = 2
+	hp_bg_style.border_width_top = 3
+	hp_bg_style.border_width_right = 2
+	hp_bg_style.border_width_bottom = 3
+	hp_bg_style.border_color = Color(1, 1, 1, 0.35)
+	hp_bg_style.set_corner_radius_all(5)
+	enemy_hp_bar.add_theme_stylebox_override("background", hp_bg_style)
+	
+	var hp_fill_style = StyleBoxFlat.new()
+	hp_fill_style.bg_color = Color(0.8, 0.2, 0.2, 1)
+	hp_fill_style.set_corner_radius_all(5)
+	enemy_hp_bar.add_theme_stylebox_override("fill", hp_fill_style)
+	
+	enemy_hp_bar.custom_minimum_size = Vector2(10, 36)
+	enemy_hp_bar.show_percentage = false
+	
 	enemy_name_label.text = enemy.name
 	enemy_hp = enemy.hp
 	enemy_hp_bar.max_value = enemy.hp
@@ -144,20 +189,27 @@ func _ready():
 	# 初始 AP
 	current_ap = GameManager.max_ap
 	
+	# 应用局外升级：特殊类
+	_apply_meta_upgrades_special()
+	
 	# 5. 初始化数值 UI
 	update_ui_values()
 	
-	# 5. 按钮样式与绑定
-	setup_button_style()
-	
-	# 6. 初始化战斗牌堆
+	# 5. 初始化战斗牌堆
 	draw_pile = GameManager.player_deck.duplicate()
 	draw_pile.shuffle()
 	
 	# 7. 初始抽牌
 	for i in range(5):
 		draw_card()
-	
+	# 局外升级：斜杠青年 - 每关额外抽 1 张随机角色专属牌
+	var meta_for_slash = get_node_or_null("/root/MetaProgressManager")
+	if meta_for_slash and meta_for_slash.has_upgrade("sp_slash"):
+		if GameManager.selected_hero and GameManager.selected_hero.card_pool.size() > 0:
+			var pool = GameManager.selected_hero.card_pool
+			var bonus_card_data = pool[randi() % pool.size()].duplicate()
+			draw_card(bonus_card_data)
+			spawn_floating_number("斜杠青年!", false, hero_sprite.global_position + Vector2(0, -120), Color.PURPLE)
 	if GameManager.start_battle_discard_random_hand and hand_cards.size() > 0:
 		var idx = randi() % hand_cards.size()
 		var c = hand_cards[idx]
@@ -178,68 +230,108 @@ func _ready():
 	
 	# 8. 添加返回按钮与牌库按钮
 	_setup_battle_ui_buttons()
+	_setup_hero_status_display()
+	_setup_intent_card()
+
+func _setup_intent_card():
+	var sf_yige = _scale_factor
+	var screen_w = get_viewport_rect().size.x
+	
+	# 卡片整体尺寸和位置
+	var card_w = 270.0 * sf_yige
+	var card_h = 360.0 * sf_yige
+	var margin = 20.0
+	
+	intent_card.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	intent_card.position = Vector2(screen_w - card_w - margin, 280.0 * sf_yige)
+	intent_card.custom_minimum_size = Vector2(card_w, card_h)
+	
+	# ValueContainer（左上角的红色数值圆圈）
+	var val_size = 60.0 * sf_yige
+	var value_container = intent_card.get_node("ValueContainer")
+	value_container.offset_left   = -val_size / 2
+	value_container.offset_top    = -val_size / 2
+	value_container.offset_right  =  val_size / 2
+	value_container.offset_bottom =  val_size / 2
+	
+	# 字体大小
+	intent_card.get_node("VBox/Title").add_theme_font_size_override("font_size", int(26 * sf_yige))
+	intent_icon.add_theme_font_size_override("font_size", int(64 * sf_yige))
+	intent_description.add_theme_font_size_override("font_size", int(26 * sf_yige))
+	intent_text.add_theme_font_size_override("font_size", int(26 * sf_yige))
+	intent_description.custom_minimum_size = Vector2(card_w - 20, 0)
+
+func _setup_hero_status_display():
+	# HeroStatusSmall 位置和尺寸
+	var hs = $BottomArea/StatusBar/HeroStatusSmall
+	hs.offset_left   = 20.0
+	hs.offset_top    = -30.0 * _scale_factor + 40
+	hs.offset_right  = 480.0 * _scale_factor
+	hs.offset_bottom = 50.0 * _scale_factor + 40
+	# hs.postion = Vector2(0, 1) # 锚点在底部
+	# 头像大小
+	hero_sprite.custom_minimum_size = Vector2(150 * _scale_factor, 150 * _scale_factor)
+
+	# 名字字体
+	hero_name_label.add_theme_font_size_override("font_size", int(30 * _scale_factor))
+
+	# 血条尺寸
+	hero_hp_bar.custom_minimum_size = Vector2(280 * _scale_factor, 40 * _scale_factor)
 
 func _setup_battle_ui_buttons():
-	# 牌库按钮
-	var deck_btn = Button.new()
-	deck_btn.text = " 🗃️ 查看牌库 "
-	deck_btn.name = "DeckButton"
-	var style_deck = _create_style("#fdf5e6", 15, 2)
-	deck_btn.add_theme_stylebox_override("normal", style_deck)
-	deck_btn.add_theme_stylebox_override("hover", _create_style("#8fb9aa", 15, 4))
-	deck_btn.add_theme_stylebox_override("pressed", _create_style("#7aa899", 15, 0))
-	deck_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	deck_btn.focus_mode = Control.FOCUS_NONE
-	deck_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
-	deck_btn.add_theme_font_size_override("font_size", 20)
-	deck_btn.position = Vector2(12, 65)
-	deck_btn.custom_minimum_size = Vector2(150, 44)
-	add_child(deck_btn)
-	deck_btn.pressed.connect(func(): GameManager.show_deck_viewer(self))
-
-	# 敌方卡组按钮
-	var enemy_deck_btn = Button.new()
-	enemy_deck_btn.text = " 🧾 敌方卡组 "
-	enemy_deck_btn.name = "EnemyDeckButton"
-	enemy_deck_btn.add_theme_stylebox_override("normal", _create_style("#fdf5e6", 15, 2))
-	enemy_deck_btn.add_theme_stylebox_override("hover", _create_style("#8fb9aa", 15, 4))
-	enemy_deck_btn.add_theme_stylebox_override("pressed", _create_style("#7aa899", 15, 0))
-	enemy_deck_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	enemy_deck_btn.focus_mode = Control.FOCUS_NONE
-	enemy_deck_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
-	enemy_deck_btn.add_theme_font_size_override("font_size", 20)
-	enemy_deck_btn.custom_minimum_size = Vector2(150, 45)
-	if has_node("%ComboDirectoryButton"):
-		var combo_btn = %ComboDirectoryButton
-		enemy_deck_btn.position = combo_btn.position + Vector2(0, combo_btn.custom_minimum_size.y + 8)
-	else:
-		enemy_deck_btn.position = Vector2(get_viewport_rect().size.x - 165, 68)
-	add_child(enemy_deck_btn)
-	enemy_deck_btn.pressed.connect(_show_enemy_deck_viewer)
-
+	var sf = _scale_factor
+	var btn_w = 220.0 * sf
+	var btn_h = 70.0 * sf
+	var margin = 12.0
+	var gap = 8.0
+	
+	# 创建通用按钮样式
+	var style_normal = _create_style("#4a4a4a", 10, 4)
+	var style_hover = _create_style("#666666", 10, 6)
+	var style_pressed = _create_style("#222222", 10, 0)
+	
+	# 结束回合按钮样式
+	end_turn_button.add_theme_stylebox_override("normal", style_normal)
+	end_turn_button.add_theme_stylebox_override("hover", style_hover)
+	end_turn_button.add_theme_stylebox_override("pressed", style_pressed)
+	end_turn_button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	end_turn_button.focus_mode = Control.FOCUS_NONE
+	end_turn_button.add_theme_color_override("font_color", Color.WHITE)
+	end_turn_button.pressed.connect(_on_end_turn_pressed)
+	end_turn_button.custom_minimum_size = Vector2(btn_w, 80 * sf)
+	end_turn_button.add_theme_font_size_override("font_size", int(36 * sf))
+	
+	# 胜利/失败界面的按钮也统一样式并修复焦点边框
+	for btn in [next_level_button, restart_button]:
+		btn.add_theme_stylebox_override("normal", style_normal)
+		btn.add_theme_stylebox_override("hover", style_hover)
+		btn.add_theme_stylebox_override("pressed", style_pressed)
+		btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.add_theme_color_override("font_color", Color.WHITE)
+	
+	next_level_button.pressed.connect(_on_next_level_pressed)
+	restart_button.pressed.connect(_on_restart_pressed)
+	
+	# ── 左上角：放弃挑战 ──
 	var back_btn = Button.new()
 	back_btn.text = " ↩ 放弃挑战 "
 	back_btn.name = "AbandonButton"
-	# var is_mobile = OS.has_feature("mobile")
+	back_btn.custom_minimum_size = Vector2(btn_w, btn_h)
+	back_btn.position = Vector2(margin, margin)
 	
-	# 使用与主菜单/角色选择类似的风格
-	var style_normal = _create_style("#fdf5e6", 15, 2)
-	var style_hover = _create_style("#ff6b6b", 15, 4) 
-	var style_pressed = _create_style("#c0392b", 15, 0)
+	var back_style_normal = _create_style("#fdf5e6", 15, 2)
+	var back_style_hover = _create_style("#ff6b6b", 15, 4)
+	var back_style_pressed = _create_style("#c0392b", 15, 0)
 	
-	back_btn.add_theme_stylebox_override("normal", style_normal)
-	back_btn.add_theme_stylebox_override("hover", style_hover)
-	back_btn.add_theme_stylebox_override("pressed", style_pressed)
+	back_btn.add_theme_stylebox_override("normal", back_style_normal)
+	back_btn.add_theme_stylebox_override("hover", back_style_hover)
+	back_btn.add_theme_stylebox_override("pressed", back_style_pressed)
 	back_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	back_btn.focus_mode = Control.FOCUS_NONE
 	back_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
 	back_btn.add_theme_color_override("font_hover_color", Color.WHITE)
-	back_btn.add_theme_font_size_override("font_size", 20)
-	
-	# 放置在左上角
-	back_btn.position = Vector2(12, 12)
-	back_btn.custom_minimum_size = Vector2(150, 44)
-	add_child(back_btn)
+	back_btn.add_theme_font_size_override("font_size", 30 * sf)
 	
 	back_btn.pressed.connect(func():
 		var dialog = ConfirmationDialog.new()
@@ -247,16 +339,69 @@ func _setup_battle_ui_buttons():
 		dialog.dialog_text = "当前的离职进度将会丢失，确定要返回主菜单吗？"
 		dialog.ok_button_text = "确定"
 		dialog.cancel_button_text = "点错了"
-		# 放大弹窗文字与按钮字体，提升可读性
-		dialog.get_label().add_theme_font_size_override("font_size", 24)
-		dialog.get_ok_button().add_theme_font_size_override("font_size", 22)
-		dialog.get_cancel_button().add_theme_font_size_override("font_size", 22)
+		dialog.get_label().add_theme_font_size_override("font_size", 26 * sf)
+		dialog.get_ok_button().add_theme_font_size_override("font_size", 24 * sf)
+		dialog.get_cancel_button().add_theme_font_size_override("font_size", 24 * sf)
 		add_child(dialog)
-		dialog.popup_centered()
+		GameManager.popup_confirm_dialog(dialog)
 		dialog.confirmed.connect(func():
 			get_tree().change_scene_to_file("res://Scenes/main_menu.tscn")
 		)
 	)
+	add_child(back_btn)
+	
+	# ── 左上角：查看牌库（放弃挑战正下方）──
+	var deck_btn = Button.new()
+	deck_btn.text = " 🗃️ 查看牌库 "
+	deck_btn.name = "DeckButton"
+	deck_btn.custom_minimum_size = Vector2(btn_w, btn_h)
+	deck_btn.position = Vector2(margin, margin + btn_h + gap)
+	
+	deck_btn.add_theme_stylebox_override("normal", _create_style("#fdf5e6", 15, 2))
+	deck_btn.add_theme_stylebox_override("hover", _create_style("#8fb9aa", 15, 4))
+	deck_btn.add_theme_stylebox_override("pressed", _create_style("#7aa899", 15, 0))
+	deck_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	deck_btn.focus_mode = Control.FOCUS_NONE
+	deck_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+	deck_btn.add_theme_font_size_override("font_size", 30 * sf)
+	
+	deck_btn.pressed.connect(func(): GameManager.show_deck_viewer(self))
+	add_child(deck_btn)
+	
+	# ── 右上角：连招一览 ──
+	var screen_w = get_viewport_rect().size.x
+	if has_node("%ComboDirectoryButton"):
+		var combo_btn = %ComboDirectoryButton
+		combo_btn.custom_minimum_size = Vector2(btn_w, btn_h)
+		combo_btn.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		combo_btn.position = Vector2(screen_w - btn_w - margin, margin)
+		combo_btn.text = " 📜 连招一览"
+		combo_btn.add_theme_stylebox_override("normal", _create_style("#fdf5e6", 15, 8))
+		combo_btn.add_theme_stylebox_override("hover", _create_style("#a8d8ea", 15, 12))
+		combo_btn.add_theme_stylebox_override("pressed", _create_style("#7fb5c9", 15, 0))
+		combo_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		combo_btn.focus_mode = Control.FOCUS_NONE
+		combo_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+		combo_btn.add_theme_font_size_override("font_size", int(28 * sf))
+		combo_btn.pressed.connect(show_combo_directory)
+	
+	# ── 右上角：敌方卡组（连招一览正下方）──
+	var enemy_deck_btn = Button.new()
+	enemy_deck_btn.text = " 🧾 敌方卡组 "
+	enemy_deck_btn.name = "EnemyDeckButton"
+	enemy_deck_btn.custom_minimum_size = Vector2(btn_w, btn_h)
+	enemy_deck_btn.position = Vector2(screen_w - btn_w - margin, margin + btn_h + gap)
+	
+	enemy_deck_btn.add_theme_stylebox_override("normal", _create_style("#fdf5e6", 15, 2))
+	enemy_deck_btn.add_theme_stylebox_override("hover", _create_style("#8fb9aa", 15, 4))
+	enemy_deck_btn.add_theme_stylebox_override("pressed", _create_style("#7aa899", 15, 0))
+	enemy_deck_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	enemy_deck_btn.focus_mode = Control.FOCUS_NONE
+	enemy_deck_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
+	enemy_deck_btn.add_theme_font_size_override("font_size", 30 * sf)
+	
+	enemy_deck_btn.pressed.connect(_show_enemy_deck_viewer)
+	add_child(enemy_deck_btn)
 
 func update_ui_values():
 	hero_hp_bar.value = hero_hp
@@ -264,15 +409,28 @@ func update_ui_values():
 	_ensure_hp_label(hero_hp_bar, "HeroHpValueLabel", hero_hp, Color.WHITE)
 	_ensure_hp_label(enemy_hp_bar, "EnemyHpValueLabel", enemy_hp, Color.WHITE)
 	
-	# 修复“血条蹦迪”：使用带背景的 PanelContainer，视觉更稳固
-	var shield_display = hero_hp_bar.get_node_or_null("ShieldDisplay")
+	# 护盾显示挂在 HeroSprite 右下角
+	var shield_display = hero_sprite.get_node_or_null("ShieldDisplay")
 	if not shield_display:
 		shield_display = PanelContainer.new()
 		shield_display.name = "ShieldDisplay"
+		
+		shield_display.anchor_left   = 1.0
+		shield_display.anchor_top    = 1.0
+		shield_display.anchor_right  = 1.0
+		shield_display.anchor_bottom = 1.0
+		
+		var badge_w = hero_sprite.custom_minimum_size.x * 0.5
+		var badge_h = hero_sprite.custom_minimum_size.y * 0.25
+		shield_display.offset_left   = -badge_w
+		shield_display.offset_top    = -badge_h
+		shield_display.offset_right  = 0
+		shield_display.offset_bottom = 0
+		
 		var style = StyleBoxFlat.new()
-		style.bg_color = Color(0, 0.6, 0.7, 0.9) # 更亮一点的护盾青
+		style.bg_color = Color(0, 0.6, 0.7, 0.9)
 		style.set_corner_radius_all(10)
-		style.content_margin_left = 6
+		style.content_margin_left  = 6
 		style.content_margin_right = 6
 		style.border_width_left = 2
 		style.border_color = Color.CYAN
@@ -280,37 +438,27 @@ func update_ui_values():
 		
 		var label = Label.new()
 		label.name = "Label"
-		label.add_theme_font_size_override("font_size", 18)
+		label.add_theme_font_size_override("font_size", int(18 * _scale_factor))
 		label.add_theme_color_override("font_color", Color.WHITE)
 		shield_display.add_child(label)
-		hero_hp_bar.add_child(shield_display)
+		hero_sprite.add_child(shield_display)
 	
 	if hero_shield > 0:
 		shield_display.get_node("Label").text = "🛡️%d" % hero_shield
 		shield_display.show()
-		# 放在血条左侧固定位置
-		shield_display.position = Vector2(-70, -2) 
 	else:
 		shield_display.hide()
-		
-	# 保持名字标签纯净，防止抖动
+	
 	hero_name_label.text = GameManager.selected_hero.character_name if GameManager.selected_hero else "英雄"
-		
 	energy_label.text = "摸鱼力: %d/%d" % [current_ap, GameManager.max_ap]
 	
-	# 如果当前 AP 超过上限（临时 AP），改变颜色提醒
 	if current_ap > GameManager.max_ap:
 		energy_label.add_theme_color_override("font_color", Color.YELLOW)
 	else:
 		energy_label.remove_theme_color_override("font_color")
-		
-	# 更新离职进度条
-	if has_node("%ResignationBar"):
-		var bar = %ResignationBar
-		bar.value = GameManager.current_level
-		_style_resignation_bar(bar)
-	# 同步到全局
+	
 	GameManager.player_hp = hero_hp
+	energy_label.add_theme_font_size_override("font_size", int(32 * _scale_factor))
 
 func _roll_compliance_rule():
 	var rule_type = randi() % 2
@@ -384,54 +532,26 @@ func _ensure_hp_label(bar: ProgressBar, label_name: String, value: int, color: C
 	bar.show_percentage = false
 	label.text = str(value)
 
-func setup_button_style():
-	var style_normal = _create_style("#4a4a4a", 10, 4)
-	var style_hover = _create_style("#666666", 10, 6)
-	var style_pressed = _create_style("#222222", 10, 0)
+func _apply_meta_upgrades_special():
+	var meta = get_node_or_null("/root/MetaProgressManager")
+	if not meta:
+		return
 	
-	# 结束回合按钮样式
-	end_turn_button.add_theme_stylebox_override("normal", style_normal)
-	end_turn_button.add_theme_stylebox_override("hover", style_hover)
-	end_turn_button.add_theme_stylebox_override("pressed", style_pressed)
-	end_turn_button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	end_turn_button.focus_mode = Control.FOCUS_NONE
-	end_turn_button.add_theme_color_override("font_color", Color.WHITE)
+	# 策略类升级
+	if meta.has_upgrade("fish_first"):
+		GameManager.first_card_free = true
 	
-	end_turn_button.pressed.connect(_on_end_turn_pressed)
+	if meta.has_upgrade("def_shield"):
+		hero_shield = 5
 	
-	# 胜利/失败界面的按钮也统一样式并修复焦点边框
-	for btn in [next_level_button, restart_button]:
-		btn.add_theme_stylebox_override("normal", style_normal)
-		btn.add_theme_stylebox_override("hover", style_hover)
-		btn.add_theme_stylebox_override("pressed", style_pressed)
-		btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.add_theme_color_override("font_color", Color.WHITE)
-		
-	next_level_button.pressed.connect(_on_next_level_pressed)
-	restart_button.pressed.connect(_on_restart_pressed)
+	if meta.has_upgrade("dot_start"):
+		enemy_poison_stacks = 1
 	
-	if has_node("%ComboDirectoryButton"):
-		var combo_btn = %ComboDirectoryButton
-		combo_btn.pressed.connect(show_combo_directory)
-		# 统一按钮风格
-		# 与主菜单“开始/教程/退出”三按钮风格一致
-		var cb_normal = _create_style("#fdf5e6", 30, 8)
-		var cb_hover = _create_style("#a8d8ea", 30, 12)
-		var cb_pressed = _create_style("#7fb5c9", 30, 0)
-		combo_btn.add_theme_stylebox_override("normal", cb_normal)
-		combo_btn.add_theme_stylebox_override("hover", cb_hover)
-		combo_btn.add_theme_stylebox_override("pressed", cb_pressed)
-		combo_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		combo_btn.focus_mode = Control.FOCUS_NONE
-		combo_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
-		
-		# 添加图标
-		combo_btn.text = " 📜 连招一览"
-		
-		# 放在右上角
-		combo_btn.position = Vector2(get_viewport_rect().size.x - 165, 15)
-		combo_btn.custom_minimum_size = Vector2(150, 45)
+	# 特殊类升级
+	if meta.has_upgrade("sp_yolo"):
+		hero_hp = int(hero_hp * 0.5)
+		GameManager.player_hp = hero_hp
+		player_damage_multiplier *= 2.0
 
 func _on_restart_pressed():
 	GameManager.is_tutorial_mode = false
@@ -451,48 +571,6 @@ func _create_style(color_hex: String, radius: int, shadow: int) -> StyleBoxFlat:
 	sb.border_width_bottom = 2
 	sb.border_color = Color(0, 0, 0, 0.1)
 	return sb
-
-func _style_resignation_bar(bar: ProgressBar):
-	# 容器尺寸与位置微调
-	bar.custom_minimum_size.y = 40
-	bar.show_percentage = false
-	
-	# 背景：奶油色，带圆角和阴影
-	var sb_bg = StyleBoxFlat.new()
-	sb_bg.bg_color = Color("#dcd8c0") 
-	sb_bg.set_corner_radius_all(20)
-	sb_bg.shadow_color = Color(0, 0, 0, 0.1)
-	sb_bg.shadow_size = 4
-	sb_bg.shadow_offset = Vector2(0, 2)
-	bar.add_theme_stylebox_override("background", sb_bg)
-	
-	# 进度：清新绿
-	var sb_fg = StyleBoxFlat.new()
-	sb_fg.bg_color = Color("#8fb9aa") 
-	sb_fg.set_corner_radius_all(20)
-	bar.add_theme_stylebox_override("fill", sb_fg)
-	
-	# 文字标签：确保绝对居中
-	if bar.has_node("ResignationLabel"):
-		var label = bar.get_node("ResignationLabel")
-		label.add_theme_color_override("font_color", Color("#3d3d3d"))
-		label.add_theme_font_size_override("font_size", 18)
-		label.add_theme_constant_override("outline_size", 2)
-		label.add_theme_color_override("font_outline_color", Color.WHITE)
-		label.text = "🏃 离职进度: %d / 10 🏁" % GameManager.current_level
-		
-		# 使用更严谨的居中对齐方式
-		label.anchor_left = 0
-		label.anchor_top = 0
-		label.anchor_right = 1
-		label.anchor_bottom = 1
-		label.offset_left = 0
-		label.offset_top = 0
-		label.offset_right = 0
-		label.offset_bottom = 0
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-
 
 func _on_end_turn_pressed():
 	end_turn_button.disabled = true
@@ -529,6 +607,7 @@ func _on_end_turn_pressed():
 		enemy_turn()
 
 func enemy_turn():
+	battle_turn_count += 1
 	# 处理中毒伤害
 	if enemy_poison_stacks > 0:
 		print("中毒发作：造成 %d 点伤害" % enemy_poison_stacks)
@@ -597,6 +676,16 @@ func enemy_turn():
 		# 鹦鹉机制已移至玩家回合开始时的“复读干扰”
 		apply_damage_to_hero(12 + enemy_damage_bonus)
 		print("鹦鹉发动了普通攻击...")
+	elif "浣熊" in enemy_name:
+		# 薪水小偷浣熊：偷走序列槽中的 Emoji
+		if current_sequence.size() > 0:
+			var stolen_idx = randi() % current_sequence.size()
+			var stolen_emoji = current_sequence[stolen_idx]
+			current_sequence.remove_at(stolen_idx)
+			spawn_floating_number("偷走了 %s!" % stolen_emoji, false, %BossSprite.global_position + Vector2(0, -120), Color.GOLD)
+			_update_sequence_display()
+		apply_damage_to_hero(14 + enemy_damage_bonus)
+		print("薪水小偷浣熊顺手牵羊...")
 	elif "刺猬" in enemy_name:
 		if hedgehog_turns_left <= 1:
 			if not hedgehog_combo_met:
@@ -611,14 +700,194 @@ func enemy_turn():
 			for i in range(3):
 				apply_damage_to_hero(4 + enemy_damage_bonus) # 降低连击伤害
 				await get_tree().create_timer(0.2).timeout
+	elif "鲶鱼" in enemy_name:
+		# 老油条鲶鱼：每回合首次受伤减半，然后回血并塞废话
+		catfish_slipped_this_turn = false  # 重置滑溜状态
+		var heal = 6
+		enemy_hp = min(enemy_hp_bar.max_value, enemy_hp + heal)
+		spawn_floating_number("摸鱼回血 +%d" % heal, false, %BossSprite.global_position + Vector2(0, -120), Color.GREEN)
+		inject_junk_card("rambling")
+		apply_damage_to_hero(8 + enemy_damage_bonus)
+		print("老油条鲶鱼回血并塞入【废话连篇】...")
+	elif "螃蟹" in enemy_name:
+		# 打印机螃蟹：持续塞卡纸，每3张触发爆发
+		inject_junk_card("printer_jam")
+		crab_jammed_count += 1
+		
+		if crab_jammed_count >= 3:
+			var burst = 25 + enemy_damage_bonus
+			apply_damage_to_hero(burst)
+			spawn_floating_number("卡纸爆发！", true, %BossSprite.global_position + Vector2(0, -120), Color.RED)
+			crab_jammed_count = 0  # 重置计数
+		else:
+			apply_damage_to_hero(10 + enemy_damage_bonus)
+		
+		spawn_floating_number("卡纸 x%d" % crab_jammed_count, false, %BossSprite.global_position + Vector2(0, -80), Color.ORANGE)
+		print("打印机螃蟹塞入【打印机卡纸】...")
+	elif "摸鱼猫主管" in enemy_name:
+		if supervisor_sleeping:
+			supervisor_sleeping = false  # 清醒过来
+			spawn_floating_number("清醒了！", false, %BossSprite.global_position + Vector2(0, -120), Color.CYAN)
+			print("摸鱼猫主管清醒，准备下回合攻击。")
+		else:
+			# 检测玩家是否使用了摸鱼卡（☕💩💤💧等）
+			var slacking_detected = false
+			for card_data in cards_played_this_turn:
+				if card_data.get("emoji", "") in ["☕", "💩", "💤", "💧"]:
+					slacking_detected = true
+					break
+			
+			if slacking_detected:
+				var cat_damage = 22 + enemy_damage_bonus
+				spawn_floating_number("抓包摸鱼！惩罚加倍！", true, %BossSprite.global_position + Vector2(0, -120), Color.RED)
+				apply_damage_to_hero(cat_damage)
+			else:
+				apply_damage_to_hero(14 + enemy_damage_bonus)
+			print("摸鱼猫主管抓包施压...")
+	elif "树懒" in enemy_name:
+		# 会议树懒：持续塞垃圾文件，手牌越多伤害越高
+		var base_damage = 12 + enemy_damage_bonus
+		if hand_cards.size() >= 7:
+			base_damage += 6
+			spawn_floating_number("文件堆积！", true, hero_sprite.global_position + Vector2(0, -100), Color.ORANGE)
+		apply_damage_to_hero(base_damage)
+		inject_junk_card("meeting")
+		print("树懒塞入了【无意义早会】...")
+	elif "镰鼬" in enemy_name:
+		# 裁员镰鼬：威胁性削减手牌和牌库
+		var cut_damage = 18 + enemy_damage_bonus
+		var cards_in_hand = hand_cards.size()
+		
+		if cards_in_hand >= 6:
+			cut_damage += 10
+			spawn_floating_number("裁员名单超员！", true, hero_sprite.global_position + Vector2(0, -100), Color.RED)
+		
+		apply_damage_to_hero(cut_damage)
+		
+		# 裁掉1张手牌
+		if cards_in_hand > 0:
+			var idx = randi() % cards_in_hand
+			var removed = hand_cards[idx]
+			hand_cards.remove_at(idx)
+			removed.queue_free()
+			update_hand_layout()
+			spawn_floating_number("裁掉1张手牌", false, %BossSprite.global_position + Vector2(0, -120), Color.ORANGE)
+		
+		# 每3回合还会裁掉牌库中的一张牌
+		if battle_turn_count % 3 == 0 and draw_pile.size() > 0:
+			draw_pile.remove_at(randi() % draw_pile.size())
+			spawn_floating_number("牌库裁员！", false, %BossSprite.global_position + Vector2(0, -100), Color.DARK_RED)
+	elif "鲸" in enemy_name:
+		# 年终总结鲸：根据玩家出牌数量累计考核压力
+		var whale_damage = 14 + enemy_damage_bonus + whale_review_pressure * 2
+		apply_damage_to_hero(whale_damage)
+		
+		if whale_review_pressure >= 5:
+			inject_junk_card("kpi")
+			spawn_floating_number("总结超载：塞入KPI！", true, %BossSprite.global_position + Vector2(0, -120), Color.GOLD)
+		
+		spawn_floating_number("考核压力: %d" % whale_review_pressure, false, %BossSprite.global_position + Vector2(0, -80), Color.YELLOW)
+		whale_review_pressure = 0  # 重置压力值
+	elif "秃鹫" in enemy_name:
+		# 外包秃鹫：逐步压低 AP，还会削弱卡牌效果
+		vulture_outsource_stacks += 1
+		apply_damage_to_hero(20 + enemy_damage_bonus)
+		
+		# 每2层外包，强制将一张手牌降级（随机减少其效果值）
+		if vulture_outsource_stacks % 2 == 0 and hand_cards.size() > 0:
+			var target_idx = randi() % hand_cards.size()
+			var target_card = hand_cards[target_idx]
+			if target_card.card_data.has("value") and target_card.card_data.value > 0:
+				target_card.card_data.value = max(1, target_card.card_data.value - 3)
+				spawn_floating_number("外包替代：削弱手牌！", false, %BossSprite.global_position + Vector2(0, -120), Color.DARK_ORANGE)
+		
+		spawn_floating_number("外包层数 x%d" % vulture_outsource_stacks, false, %BossSprite.global_position + Vector2(0, -80), Color.ORANGE)
+	elif "蜘蛛" in enemy_name:
+		# 画饼蜘蛛：持续编织虚假目标，越往后越强
+		var spider_damage = 16 + enemy_damage_bonus + (battle_turn_count * 2)
+		apply_damage_to_hero(spider_damage)
+		inject_junk_card("goal")
+		
+		# 每4回合触发一次"大画饼"：塞入2张虚假目标
+		if battle_turn_count % 4 == 0:
+			inject_junk_card("goal")
+			spawn_floating_number("大饼！双倍虚假目标！", true, %BossSprite.global_position + Vector2(0, -120), Color.PURPLE)
+		
+		print("画饼蜘蛛编织了【虚假目标】...")
+	elif "鲶鱼" in enemy_name:
+		var heal = 6
+		enemy_hp = min(enemy_hp_bar.max_value, enemy_hp + heal)
+		spawn_floating_number("摸鱼回血 +%d" % heal, false, %BossSprite.global_position + Vector2(0, -120), Color.GREEN)
+		inject_junk_card("rambling")
+		apply_damage_to_hero(8 + enemy_damage_bonus)
+		print("老油条鲶鱼回血并塞入【废话连篇】...")
+	elif "螃蟹" in enemy_name:
+		inject_junk_card("printer_jam")
+		printer_jam_cards_added += 1
+		apply_damage_to_hero(10 + enemy_damage_bonus)
+		if printer_jam_cards_added % 3 == 0:
+			spawn_floating_number("卡纸爆发!", true, hero_sprite.global_position + Vector2(0, -100), Color.ORANGE_RED)
+			apply_damage_to_hero(8 + enemy_damage_bonus)
+		print("打印机螃蟹塞入【打印机卡纸】...")
+	elif "摸鱼猫主管" in enemy_name:
+		if supervisor_sleeping:
+			spawn_floating_number("打盹中...", false, %BossSprite.global_position + Vector2(0, -120), Color.CYAN)
+			print("摸鱼猫主管正在打盹，本回合不攻击。")
+		else:
+			var cat_damage = 16 + enemy_damage_bonus
+			if has_meta("supervisor_woke_angry"):
+				cat_damage += 10
+				remove_meta("supervisor_woke_angry")
+				spawn_floating_number("醒后恼羞成怒!", true, %BossSprite.global_position + Vector2(0, -120), Color.RED)
+			apply_damage_to_hero(cat_damage)
+			print("摸鱼猫主管抓包施压...")
+	elif "野猪" in enemy_name:
+		if battle_turn_count % 3 == 0:
+			spawn_floating_number("冲锋KPI!", true, %BossSprite.global_position + Vector2(0, -120), Color.RED)
+			apply_damage_to_hero(28 + enemy_damage_bonus)
+			inject_junk_card("kpi")
+		else:
+			var boar_damage = 14 + enemy_damage_bonus
+			if boar_phase_two:
+				boar_damage += 6
+			apply_damage_to_hero(boar_damage)
+			print("部门经理野猪持续施压...")
 	elif "树懒" in enemy_name:
 		apply_damage_to_hero(12 + enemy_damage_bonus)
 		print("树懒塞入了垃圾卡...")
 		inject_junk_card("meeting")
 	elif "监控猿" in enemy_name:
-		# 监控猿机制在 check_combos 中实现锁定检测
+		if monkey_surveillance_stacks >= 4:
+			monkey_locked_emoji_slot = true
+			spawn_floating_number("锁定槽位!", false, %BossSprite.global_position + Vector2(0, -120), Color.PURPLE)
 		apply_damage_to_hero(18 + enemy_damage_bonus)
 		print("监控猿正在严密监控...")
+	elif "镰鼬" in enemy_name:
+		var cut_damage = 18 + enemy_damage_bonus
+		if hand_cards.size() >= 5:
+			cut_damage += 8
+			spawn_floating_number("裁员名单命中!", true, hero_sprite.global_position + Vector2(0, -100), Color.RED)
+		apply_damage_to_hero(cut_damage)
+		if hand_cards.size() > 0:
+			var idx = randi() % hand_cards.size()
+			var removed = hand_cards[idx]
+			hand_cards.remove_at(idx)
+			removed.queue_free()
+			update_hand_layout()
+			spawn_floating_number("裁掉1张手牌", false, %BossSprite.global_position + Vector2(0, -120), Color.ORANGE)
+	elif "鲸" in enemy_name:
+		var whale_damage = 14 + enemy_damage_bonus + whale_review_pressure
+		apply_damage_to_hero(whale_damage)
+		if whale_review_pressure >= 6:
+			inject_junk_card("kpi")
+			spawn_floating_number("总结超载：KPI!", true, %BossSprite.global_position + Vector2(0, -120), Color.GOLD)
+		whale_review_pressure = 0
+	elif "秃鹫" in enemy_name:
+		vulture_outsource_stacks += 1
+		apply_damage_to_hero(20 + enemy_damage_bonus)
+		if draw_pile.size() > 0:
+			draw_pile.shuffle()
+		spawn_floating_number("外包替代 x%d" % vulture_outsource_stacks, false, %BossSprite.global_position + Vector2(0, -120), Color.DARK_ORANGE)
 	elif "蜘蛛" in enemy_name:
 		print("画饼蜘蛛发动了【虚假目标】！")
 		apply_damage_to_hero(20 + enemy_damage_bonus)
@@ -810,8 +1079,8 @@ func inject_junk_card(type: String):
 	var new_card = card_scene.instantiate()
 	new_card.card_data = junk_data.duplicate()
 	hand_container.add_child(new_card)
-	new_card.scale = Vector2(0.75, 0.75)
-	new_card.pivot_offset = Vector2(110, 340) 
+	new_card.scale = Vector2(1.0, 1.0)  
+	new_card.pivot_offset = Vector2(110, 340)
 	hand_cards.append(new_card)
 	update_hand_layout()
 
@@ -839,15 +1108,28 @@ func start_player_turn():
 	raccoon_steal_ready = false
 	hydra_head_damage_this_turn = 0
 	spider_shuffle_used = false
+	catfish_slipped_this_turn = false
 	first_card_free_used = false
+	
+	var meta = get_node_or_null("/root/MetaProgressManager")
+	if meta:
+		# fish_hand: 手牌>6时摸鱼力+1
+		if meta.has_upgrade("fish_hand") and hand_cards.size() > 6:
+			current_ap += 1
+		# def_retain: 护盾不清零
+		if not meta.has_upgrade("def_retain"):
+			hero_shield = 0
+		# def_shield: 回合开始获得5点护盾
+		if meta.has_upgrade("def_shield"):
+			hero_shield += 5
+		# sp_lazy: 回合开始回血5
+		if meta.has_upgrade("sp_lazy"):
+			apply_heal_to_hero(5)
 	# 回合切换后失效：仅本回合生效的莱奥终极 0 费状态
 	if has_meta("ultimate_vision_free_cost"):
 		remove_meta("ultimate_vision_free_cost")
 	if has_meta("cancel_played_this_turn"):
 		remove_meta("cancel_played_this_turn")
-	
-	# 回合开始重置护盾
-	hero_shield = 0
 	
 	# 更新敌人意图
 	_update_enemy_intent()
@@ -862,6 +1144,9 @@ func start_player_turn():
 	if "监控猿" in enemy_name:
 		monkey_surveillance_stacks = 0
 		_update_enemy_intent()
+	if "秃鹫" in enemy_name and vulture_outsource_stacks > 0:
+		current_ap = max(0, current_ap - min(2, vulture_outsource_stacks))
+		spawn_floating_number("外包压价 AP-%d" % min(2, vulture_outsource_stacks), false, hero_sprite.global_position + Vector2(0, -100), Color.DARK_ORANGE)
 	
 	# 处理多回合状态
 	if has_meta("evasion_turns"):
@@ -879,6 +1164,10 @@ func start_player_turn():
 	has_reflect_shield = false
 	
 	current_sequence.clear()
+	if monkey_locked_emoji_slot:
+		current_sequence.append("👁️")
+		monkey_locked_emoji_slot = false
+		spawn_floating_number("槽位被锁定!", false, %BossSprite.global_position + Vector2(0, -120), Color.PURPLE)
 	
 	if "鹦鹉" in enemy_name:
 		if not last_player_card_data.is_empty():
@@ -914,9 +1203,15 @@ func start_player_turn():
 		for i in range(max(0, draw_count)):
 			draw_card()
 	else:
-		# 检查手牌中的“虚假目标”
+		# 检查手牌中的"虚假目标"
 		var draw_count = 5 + next_turn_extra_draws
 		next_turn_extra_draws = 0
+		
+		# 局外升级：无为而治 - 回合结束保留1张手牌
+		var retained_card = null
+		if meta and meta.has_upgrade("fish_retain") and hand_cards.size() > 0:
+			retained_card = hand_cards.pop_back()
+			draw_count -= 1
 		
 		for card in hand_cards:
 			if card.card_data.get("type") == "junk_goal":
@@ -928,6 +1223,9 @@ func start_player_turn():
 		for card in hand_cards:
 			card.queue_free()
 		hand_cards.clear()
+		
+		if retained_card:
+			hand_cards.append(retained_card)
 		
 		for i in range(draw_count):
 			draw_card()
@@ -953,7 +1251,9 @@ func apply_damage_to_hero(amount: int):
 		%AnimationManager.play_player_hit_anim()
 	
 	# 优先扣除护盾
+	var shield_blocked = false
 	if hero_shield > 0:
+		shield_blocked = true
 		if hero_shield >= final_damage:
 			hero_shield -= final_damage
 			spawn_floating_number(final_damage, false, hero_sprite.global_position + Vector2(0, -50), Color.CYAN)
@@ -962,6 +1262,12 @@ func apply_damage_to_hero(amount: int):
 			final_damage -= hero_shield
 			spawn_floating_number(hero_shield, false, hero_sprite.global_position + Vector2(0, -50), Color.CYAN)
 			hero_shield = 0
+	# 局外升级：挡箭牌 - 护盾抵消伤害时30%概率抽一张牌
+	if shield_blocked:
+		var meta = get_node_or_null("/root/MetaProgressManager")
+		if meta and meta.has_upgrade("def_draw") and randf() < 0.3:
+			draw_card()
+			spawn_floating_number("挡箭牌!", false, hero_sprite.global_position + Vector2(0, -120), Color.LIGHT_BLUE)
 	
 	if final_damage <= 0:
 		update_ui_values()
@@ -1022,7 +1328,7 @@ func draw_card(specific_data: Dictionary = {}):
 		new_card.card_data["cost"] = 0
 	
 	hand_container.add_child(new_card)
-	new_card.scale = Vector2(0.75, 0.75)
+	new_card.scale = Vector2(1.0, 1.0)
 	new_card.pivot_offset = Vector2(110, 340) 
 	
 	hand_cards.append(new_card)
@@ -1034,7 +1340,7 @@ func update_hand_layout():
 	var card_count = hand_cards.size()
 	if card_count == 0: return
 	var center_x = hand_container.size.x / 2.0
-	var base_y = hand_container.size.y - 110.0
+	var base_y = hand_container.size.y - 130.0
 	var total_angle = min(MAX_FAN_ANGLE, card_count * 10.0)
 	var angle_step = 0.0
 	if card_count > 1:
@@ -1092,6 +1398,12 @@ func _on_card_played(card_node):
 		cost = 0
 		first_card_free_used = true
 
+	# 局外升级：加班文化 - 每打出3张牌，下一张牌费用归零
+	if _meta_burst_ot_next_free:
+		cost = 0
+		_meta_burst_ot_next_free = false
+		spawn_floating_number("加班 0费!", false, hero_sprite.global_position + Vector2(0, -100), Color.GOLD)
+
 	# 对齐 evolution_data：莱奥 8 级终极（ultimate_vision）= 本回合所有卡牌 0 消耗
 	# 必须放在费用修正末尾，确保不被 KPI/其他修正覆写
 	if has_meta("ultimate_vision_free_cost"):
@@ -1130,9 +1442,27 @@ func _on_card_played(card_node):
 	execute_card_effect(data)
 	last_player_card_data = data
 	cards_played_this_turn.append(data)
+	if "鲸" in enemy_name_label.text:
+		whale_review_pressure += 1
 
 	if "审计" in enemy_name_label.text:
 		_check_compliance_violation()
+	
+	# 局外升级：加班文化 - 每打出3张牌，下一张牌费用归零
+	var meta = get_node_or_null("/root/MetaProgressManager")
+	if meta and meta.has_upgrade("burst_ot"):
+		_meta_burst_ot_count += 1
+		if _meta_burst_ot_count >= 3:
+			_meta_burst_ot_count = 0
+			_meta_burst_ot_next_free = true
+	
+	# 局外升级：卷王附体 - 每打出5张牌触发一次额外连招检测
+	if meta and meta.has_upgrade("sp_grind"):
+		_meta_grind_count += 1
+		if _meta_grind_count >= 5:
+			_meta_grind_count = 0
+			check_combos()
+			spawn_floating_number("卷王连招!", false, hero_sprite.global_position + Vector2(0, -120), Color.PURPLE)
 	
 	# 博姆终极进化：火伤翻倍逻辑
 	if _get_emoji_color_group(emoji) == "red" and has_meta("fire_multiplier"):
@@ -1245,6 +1575,7 @@ func update_status_display():
 func _add_status_badge(container: Control, text: String, color: Color, p_tooltip_text: String = ""):
 	var panel = PanelContainer.new()
 	var style = StyleBoxFlat.new()
+	var sf_1 = _scale_factor
 	style.bg_color = Color(color.r, color.g, color.b, 0.25)
 	style.set_corner_radius_all(6)
 	style.content_margin_left = 10
@@ -1254,9 +1585,23 @@ func _add_status_badge(container: Control, text: String, color: Color, p_tooltip
 	panel.add_theme_stylebox_override("panel", style)
 	panel.tooltip_text = p_tooltip_text
 	
+	# 为 tooltip 设置更大的字体
+	var tooltip_theme = Theme.new()
+	var tooltip_font_size = 24 * sf_1
+	var tooltip_style = StyleBoxFlat.new()
+	tooltip_style.bg_color = Color(0.1, 0.1, 0.1, 0.9)
+	tooltip_style.set_corner_radius_all(6)
+	tooltip_style.content_margin_left = 10
+	tooltip_style.content_margin_right = 10
+	tooltip_style.content_margin_top = 6
+	tooltip_style.content_margin_bottom = 6
+	tooltip_theme.set_stylebox("panel", "TooltipPanel", tooltip_style)
+	tooltip_theme.set_font_size("font_size", "TooltipLabel", tooltip_font_size)
+	panel.theme = tooltip_theme
+	
 	var label = Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_font_size_override("font_size", 26 * sf_1)
 	label.add_theme_color_override("font_color", color)
 	label.tooltip_text = p_tooltip_text
 	panel.add_child(label)
@@ -1277,6 +1622,11 @@ func update_emoji_slots():
 		label.text = emoji
 		label.add_theme_font_size_override("font_size", 32)
 		%EmojiSlot.add_child(label)
+
+func _update_sequence_display() -> void:
+	# 兼容旧调用名：当前 Emoji 序列 UI 的实际刷新函数是 update_emoji_slots()。
+	# 敌人机制（如薪水小偷浣熊）在修改 current_sequence 后可统一调用此包装函数。
+	update_emoji_slots()
 
 func check_combos():
 	# 统计当前序列中的 Emoji 数量
@@ -1327,6 +1677,15 @@ func trigger_combo(combo_data):
 		if "⌨️" in combo_data.parts:
 			hedgehog_combo_met = true
 			spawn_floating_number("SAFE!", false, %BossSprite.global_position + Vector2(0, -120), Color.GREEN)
+
+	# 局外升级：键盘侠觉醒 - ⌨️连招额外5点伤害
+	var meta = get_node_or_null("/root/MetaProgressManager")
+	if meta and meta.has_upgrade("burst_kb") and "⌨️" in combo_data.parts:
+		apply_damage_to_enemy(5)
+	
+	# 局外升级：办公室政治 - 连招时额外施加1层易伤
+	if meta and meta.has_upgrade("dot_combo"):
+		enemy_vulnerability += 1
 
 	# --- 视觉特效 ---
 	if %AnimationManager.has_method("play_combo_flash"):
@@ -1974,6 +2333,21 @@ func apply_damage_to_enemy(amount: int):
 		
 	if final_dmg > 0:
 		final_dmg = int(final_dmg * player_damage_multiplier)
+	
+	# 扩音器效果：下一次攻击翻倍
+	if final_dmg > 0 and next_attack_multiplier != 1.0:
+		final_dmg = int(final_dmg * next_attack_multiplier)
+		next_attack_multiplier = 1.0
+	
+	# 局外升级：末日冲刺 - 血量低于30%时伤害+50%
+	var meta = get_node_or_null("/root/MetaProgressManager")
+	if meta and meta.has_upgrade("burst_lowHP") and hero_hp < GameManager.max_player_hp * 0.3:
+		final_dmg = int(final_dmg * 1.5)
+	
+	# 局外升级：背刺专家 - 对中毒敌人伤害+20%
+	if meta and meta.has_upgrade("dot_bonus") and enemy_poison_stacks > 0:
+		final_dmg = int(final_dmg * 1.2)
+	
 	if enemy_vulnerability > 0:
 		final_dmg += enemy_vulnerability
 	if self.has_meta("perm_vulnerability"):
@@ -1994,7 +2368,10 @@ func show_victory():
 	if is_battle_over: return
 	is_battle_over = true
 	end_turn_button.disabled = true
-	level_clear_label.text = "第 %d 关 已突破" % GameManager.current_level
+	var _gold_reward = GameManager.grant_battle_gold(GameManager.current_level, false, false)
+	var _meta_points_reward = GameManager.grant_meta_points_for_battle(GameManager.current_level, false, false)
+	level_clear_label.text = "第 %d 关 已突破\n 🪙 +%d 摸鱼币  ·  ⭐ +%d 积分" % [GameManager.current_level, _gold_reward, _meta_points_reward]
+	# victory_sub_label.text = "老板由于无法忍受你的摸鱼行为，\n决定提前放你去下一站。\n\n本局已结算局外积分，可在主菜单升级中使用。"
 	if GameManager.skip_rewards_battles > 0:
 		GameManager.skip_rewards_battles -= 1
 		victory_layer.visible = true
@@ -2002,8 +2379,8 @@ func show_victory():
 	get_tree().create_timer(0.5).timeout.connect(show_reward_selection)
 
 func show_reward_selection():
+	var sf_2 = _scale_factor
 	if has_node("RewardLayer"): return
-	
 	var reward_layer = CanvasLayer.new()
 	reward_layer.name = "RewardLayer"
 	reward_layer.layer = 100 
@@ -2025,12 +2402,12 @@ func show_reward_selection():
 	var title = Label.new()
 	title.text = "--- 获得强化：选择一张新 Emoji 加入牌组 ---"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_font_size_override("font_size", int(36 * sf_2))
 	title.add_theme_color_override("font_color", Color.GOLD)
 	vbox.add_child(title)
 	var hbox = HBoxContainer.new()
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	hbox.add_theme_constant_override("separation", 30) 
+	hbox.add_theme_constant_override("separation", int(36 * sf_2))
 	vbox.add_child(hbox)
 	var rewards = GameManager.get_random_reward_cards(3)
 	var reward_buttons = []
@@ -2046,39 +2423,40 @@ func show_reward_selection():
 		style.border_width_bottom = 4
 		style.border_color = Color("#d2b48c")
 		card_panel.add_theme_stylebox_override("panel", style)
-		card_panel.custom_minimum_size = Vector2(180, 260) 
+		card_panel.custom_minimum_size = Vector2(270 * sf_2, 380 * sf_2)
 		hbox.add_child(card_panel)
 		var card_vbox = VBoxContainer.new()
 		card_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-		card_vbox.add_theme_constant_override("separation", 10)
+		card_vbox.add_theme_constant_override("separation", int(12 * sf_2))
 		card_panel.add_child(card_vbox)
 		var emoji_label = Label.new()
 		emoji_label.text = data.emoji
 		emoji_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		emoji_label.add_theme_font_size_override("font_size", 80)
+		emoji_label.add_theme_font_size_override("font_size", int(90 * sf_2))
 		card_vbox.add_child(emoji_label)
 		var name_label = Label.new()
 		name_label.text = data.name
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		name_label.add_theme_font_size_override("font_size", 24)
+		name_label.add_theme_font_size_override("font_size", int(30 * sf_2))
 		name_label.add_theme_color_override("font_color", Color.BLACK)
 		card_vbox.add_child(name_label)
 		var spacer = Control.new()
-		spacer.custom_minimum_size = Vector2(0, 10)
+		spacer.custom_minimum_size = Vector2(0, 12 * sf_2)
 		card_vbox.add_child(spacer)
 		var desc_label = Label.new()
 		desc_label.text = data.get("description", "")
 		desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		desc_label.custom_minimum_size = Vector2(160, 0)
-		desc_label.add_theme_font_size_override("font_size", 14)
+		desc_label.custom_minimum_size = Vector2(180 * sf_2, 0)
+		desc_label.add_theme_font_size_override("font_size", int(26 * sf_2))
 		desc_label.add_theme_color_override("font_color", Color("#555555"))
 		card_vbox.add_child(desc_label)
 
 		var select_btn = Button.new()
 		reward_buttons.append(select_btn)
 		select_btn.text = "选择"
-		select_btn.custom_minimum_size = Vector2(120, 45)
+		select_btn.custom_minimum_size = Vector2(180 * sf_2, 70 * sf_2)
+		select_btn.add_theme_font_size_override("font_size", int(28 * sf_2))
 		select_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		card_vbox.add_child(select_btn)
 		select_btn.pressed.connect(func():
@@ -2103,6 +2481,11 @@ func apply_heal_to_hero(amount: int):
 	update_status_display()
 
 func apply_shield_to_hero(amount: int):
+	# 局外升级：躺平哲学 - 无法获得护盾
+	var meta = get_node_or_null("/root/MetaProgressManager")
+	if meta and meta.has_upgrade("sp_lazy"):
+		return
+	
 	hero_shield += amount
 	spawn_floating_number(amount, false, hero_sprite.global_position + Vector2(0, -50), Color.CYAN)
 	update_ui_values()

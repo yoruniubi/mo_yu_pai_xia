@@ -51,11 +51,11 @@ func play_player_attack_anim(content):
 	
 	var projectile: Control
 	if content is Texture2D:
-		var tr = TextureRect.new()
-		tr.texture = content
-		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		projectile = tr
+		var tr_1 = TextureRect.new()
+		tr_1.texture = content
+		tr_1.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr_1.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		projectile = tr_1
 	else:
 		var lbl = Label.new()
 		lbl.text = emoji_str

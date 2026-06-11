@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=3 format=3 uid="uid://c77vq0dj8kt8n"]
 
 [ext_resource type="Script" path="res://Scripts/settings_menu.gd" id="1_settings"]
-[ext_resource type="Texture2D" path="res://Assets/Images/background.png" id="2_bg"]
+[ext_resource type="Texture2D" uid="uid://bpjtp1qxckj3p" path="res://Assets/Images/background.png" id="2_bg"]
 
 [node name="SettingsMenu" type="Control"]
 layout_mode = 3
@@ -22,6 +22,7 @@ grow_vertical = 2
 color = Color(0.960784, 0.941176, 0.862745, 1)
 
 [node name="Backdrop" type="TextureRect" parent="."]
+modulate = Color(1, 1, 1, 0.18)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -31,7 +32,6 @@ grow_vertical = 2
 texture = ExtResource("2_bg")
 expand_mode = 1
 stretch_mode = 6
-modulate = Color(1, 1, 1, 0.18)
 
 [node name="Panel" type="PanelContainer" parent="."]
 layout_mode = 1
@@ -56,7 +56,7 @@ alignment = 1
 layout_mode = 2
 theme_override_colors/font_color = Color(0.2, 0.2, 0.2, 1)
 theme_override_font_sizes/font_size = 40
-text = "设置"
+text = "局外升级"
 horizontal_alignment = 1
 
 [node name="SettingsBox" type="VBoxContainer" parent="Panel/RootVBox"]
@@ -73,8 +73,8 @@ theme_override_font_sizes/font_size = 28
 text = "显示设置"
 
 [node name="DisplayDivider" type="ColorRect" parent="Panel/RootVBox/SettingsBox"]
-layout_mode = 2
 custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
 color = Color(0.9, 0.85, 0.75, 1)
 
 [node name="FullscreenRow" type="HBoxContainer" parent="Panel/RootVBox/SettingsBox"]
@@ -101,8 +101,8 @@ text = "窗口分辨率"
 
 [node name="ResolutionOption" type="OptionButton" parent="Panel/RootVBox/SettingsBox/ResolutionRow"]
 unique_name_in_owner = true
-layout_mode = 2
 custom_minimum_size = Vector2(240, 44)
+layout_mode = 2
 
 [node name="AudioSection" type="Label" parent="Panel/RootVBox/SettingsBox"]
 layout_mode = 2
@@ -111,8 +111,8 @@ theme_override_font_sizes/font_size = 28
 text = "音量设置"
 
 [node name="AudioDivider" type="ColorRect" parent="Panel/RootVBox/SettingsBox"]
-layout_mode = 2
 custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
 color = Color(0.9, 0.85, 0.75, 1)
 
 [node name="MasterRow" type="HBoxContainer" parent="Panel/RootVBox/SettingsBox"]
@@ -126,11 +126,10 @@ text = "主音量"
 
 [node name="MasterSlider" type="HSlider" parent="Panel/RootVBox/SettingsBox/MasterRow"]
 unique_name_in_owner = true
-layout_mode = 2
 custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
 min_value = -40.0
 max_value = 0.0
-step = 1.0
 
 [node name="MasterValue" type="Label" parent="Panel/RootVBox/SettingsBox/MasterRow"]
 unique_name_in_owner = true
@@ -149,11 +148,10 @@ text = "BGM 音量"
 
 [node name="BgmSlider" type="HSlider" parent="Panel/RootVBox/SettingsBox/BgmRow"]
 unique_name_in_owner = true
-layout_mode = 2
 custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
 min_value = -40.0
 max_value = 0.0
-step = 1.0
 
 [node name="BgmValue" type="Label" parent="Panel/RootVBox/SettingsBox/BgmRow"]
 unique_name_in_owner = true
@@ -168,14 +166,14 @@ alignment = 1
 
 [node name="SaveButton" type="Button" parent="Panel/RootVBox/Footer"]
 unique_name_in_owner = true
-layout_mode = 2
 custom_minimum_size = Vector2(220, 70)
+layout_mode = 2
 theme_override_font_sizes/font_size = 28
 text = "保存设置"
 
 [node name="BackButton" type="Button" parent="Panel/RootVBox/Footer"]
 unique_name_in_owner = true
-layout_mode = 2
 custom_minimum_size = Vector2(220, 70)
+layout_mode = 2
 theme_override_font_sizes/font_size = 28
 text = "返回"

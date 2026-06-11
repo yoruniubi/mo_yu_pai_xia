@@ -56,8 +56,8 @@ var highlight_padding = {
 	"end_turn": Vector2(18, 10)
 }
 
-const FAN_RADIUS = 800.0
-const MAX_FAN_ANGLE = 30.0
+const FAN_RADIUS = 1000.0
+const MAX_FAN_ANGLE = 35.0
 
 # --- 教学步骤 (增强描述版) ---
 var tutorial_step = 0
@@ -108,16 +108,95 @@ func _ready():
 	%NextLevelButton.pressed.connect(_on_tutorial_finished)
 	%RestartButton.pressed.connect(func(): get_tree().reload_current_scene())
 
+	var screen_size = get_viewport_rect().size
+	var _scale_factor = min(screen_size.x / 1080.0, screen_size.y / 1920.0)
+	_setup_ui(_scale_factor)
+
+func _setup_ui(sf: float):
+	var screen_w = get_viewport_rect().size.x
+	var btn_w = 220.0 * sf
+	var btn_h = 70.0 * sf
+	var margin = 12.0
+
+	# IntentCard — 与 battle_scene 完全一致
+	var card_w = 270.0 * sf
+	var card_h = 360.0 * sf
+	intent_card.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	intent_card.position = Vector2(screen_w - card_w - margin, 280.0 * sf)
+	intent_card.custom_minimum_size = Vector2(card_w, card_h)
+	intent_card.get_node("VBox/Title").add_theme_font_size_override("font_size", int(26 * sf))
+	intent_icon.add_theme_font_size_override("font_size", int(64 * sf))
+	intent_description.add_theme_font_size_override("font_size", int(26 * sf))
+	intent_text.add_theme_font_size_override("font_size", int(26 * sf))
+	intent_description.custom_minimum_size = Vector2(card_w - 20, 0)
+	var val_size = 60.0 * sf
+	var value_container = intent_card.get_node("ValueContainer")
+	value_container.offset_left   = -val_size / 2
+	value_container.offset_top    = -val_size / 2
+	value_container.offset_right  =  val_size / 2
+	value_container.offset_bottom =  val_size / 2
+
+	# HeroStatusSmall — 与 battle_scene 完全一致
+	var hs = $BottomArea/StatusBar/HeroStatusSmall
+	hs.offset_left   = 20.0
+	hs.offset_top    = -30.0 * sf + 40
+	hs.offset_right  = 480.0 * sf
+	hs.offset_bottom = 50.0 * sf + 40
+	hero_sprite.custom_minimum_size = Vector2(150 * sf, 150 * sf)
+	hero_name_label.add_theme_font_size_override("font_size", int(30 * sf))
+	hero_hp_bar.custom_minimum_size = Vector2(280 * sf, 40 * sf)
+
+	# EndTurnButton — 与 battle_scene 一致
+	end_turn_button.add_theme_font_size_override("font_size", int(36 * sf))
+	end_turn_button.custom_minimum_size = Vector2(btn_w, 80 * sf)
+
+	# EnergyLabel — 与 battle_scene 一致
+	energy_label.add_theme_font_size_override("font_size", int(32 * sf))
+
+	# EnemyName — 与 battle_scene 一致
+	enemy_name_label.add_theme_font_size_override("font_size", int(34 * sf))
+	enemy_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+	# 右上角跳过按钮（教学专用）— 与 battle_scene 的连招一览按钮位置一致
+	if has_node("%SkipTutorialButton"):
+		var skip_btn = %SkipTutorialButton
+		skip_btn.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		skip_btn.position = Vector2(screen_w - btn_w - margin, margin)
+		skip_btn.custom_minimum_size = Vector2(btn_w, btn_h)
+		skip_btn.add_theme_font_size_override("font_size", int(28 * sf))
+		
 func _setup_tutorial_battle():
 	if GameManager.selected_hero:
 		hero_sprite.texture = GameManager.selected_hero.character_image
 		hero_name_label.text = GameManager.selected_hero.character_name
+		hero_name_label.custom_minimum_size = Vector2(240, 40)
+		hero_name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		hero_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	
 	enemy_hp_bar.max_value = 50
 	enemy_hp = 50
 	hero_hp = 100
 	hero_hp_bar.max_value = 100
 	current_ap = 3
+
+	# 设置敌人血条样式（与 battle_scene 一致）
+	var hp_bg_style = StyleBoxFlat.new()
+	hp_bg_style.bg_color = Color(0.1, 0.1, 0.1, 0.6)
+	hp_bg_style.border_width_left = 2
+	hp_bg_style.border_width_top = 3
+	hp_bg_style.border_width_right = 2
+	hp_bg_style.border_width_bottom = 3
+	hp_bg_style.border_color = Color(1, 1, 1, 0.35)
+	hp_bg_style.set_corner_radius_all(5)
+	enemy_hp_bar.add_theme_stylebox_override("background", hp_bg_style)
+	
+	var hp_fill_style = StyleBoxFlat.new()
+	hp_fill_style.bg_color = Color(0.8, 0.2, 0.2, 1)
+	hp_fill_style.set_corner_radius_all(5)
+	enemy_hp_bar.add_theme_stylebox_override("fill", hp_fill_style)
+	
+	enemy_hp_bar.custom_minimum_size = Vector2(10, 36)
+	enemy_hp_bar.show_percentage = false
 
 	# 教学关使用固定牌组，便于体验完整的回合循环
 	draw_pile = _build_tutorial_deck()
@@ -244,21 +323,79 @@ func _apply_highlight(target_key):
 		mat.set_shader_parameter("overlay_color", Color(0, 0, 0, 0.6))
 	mask.show()
 
-func draw_card():
-	if draw_pile.is_empty():
-		if discard_pile.is_empty():
-			return
-		draw_pile = discard_pile.duplicate()
-		discard_pile.clear()
-		draw_pile.shuffle()
+func draw_card(specific_data: Dictionary = {}):
 	var new_card = card_scene.instantiate()
-	new_card.card_data = draw_pile.pop_back()
+	
+	if specific_data.is_empty():
+		if draw_pile.size() == 0:
+			if discard_pile.size() == 0:
+				print("没牌抽了！")
+				return null
+			draw_pile = discard_pile.duplicate()
+			discard_pile.clear()
+			draw_pile.shuffle()
+			print("洗牌！")
+		
+		new_card.card_data = draw_pile.pop_back()
+	else:
+		new_card.card_data = specific_data.duplicate()
+	if has_meta("ultimate_vision_free_cost"):
+		new_card.card_data["cost"] = 0
+	
 	hand_container.add_child(new_card)
-	new_card.scale = Vector2(0.75, 0.75)
+	new_card.scale = Vector2(1.0, 1.0)
 	new_card.pivot_offset = Vector2(110, 340) 
+	
 	hand_cards.append(new_card)
+	update_hand_layout()
+	update_hand_combo_hints()
+	return new_card
+
+func update_hand_layout():
 	_update_hand_layout()
 
+
+func update_hand_combo_hints():
+	var combo_area = get_node_or_null("%ComboSlotArea")
+	if combo_area == null:
+		return
+
+	var hint_label = combo_area.get_node_or_null("TutorialComboHint")
+	if hint_label == null:
+		hint_label = Label.new()
+		hint_label.name = "TutorialComboHint"
+		hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hint_label.anchor_left = 0.0
+		hint_label.anchor_top = 1.0
+		hint_label.anchor_right = 1.0
+		hint_label.anchor_bottom = 1.0
+		hint_label.offset_left = 0.0
+		hint_label.offset_top = 8.0
+		hint_label.offset_right = 0.0
+		hint_label.offset_bottom = 44.0
+		hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		hint_label.add_theme_font_size_override("font_size", 22)
+		hint_label.add_theme_color_override("font_color", Color("#FFE08A"))
+		hint_label.add_theme_constant_override("outline_size", 2)
+		hint_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		combo_area.add_child(hint_label)
+
+	var keyboard_count := 0
+	for card in hand_cards:
+		if not is_instance_valid(card):
+			continue
+		var emoji = card.card_data.get("emoji", "")
+		if emoji == "⌨️":
+			keyboard_count += 1
+
+	if keyboard_count >= 3:
+		hint_label.text = "可凑连招：⌨️⌨️⌨️ → 疯狂输出"
+		hint_label.visible = true
+	else:
+		hint_label.text = "再找 %d 张⌨️ 可触发【疯狂输出】" % max(0, 3 - keyboard_count)
+		hint_label.visible = keyboard_count > 0
+		
 func _update_hand_layout():
 	var card_count = hand_cards.size()
 	if card_count == 0: return
@@ -418,8 +555,10 @@ func _on_end_turn_pressed():
 	# 回合结束手牌进弃牌堆并清空
 	for card in hand_cards:
 		discard_pile.append(card.card_data)
-		card.queue_free()
 	hand_cards.clear()
+	for card in hand_container.get_children():
+		if card is Control:
+			card.queue_free()
 	
 	var draw_count = 5
 	for i in range(draw_count):

@@ -9,8 +9,8 @@ var idle_tween: Tween
 var enemy_name: String = ""
 var ceo_attack_phase: int = 0
 
-func set_enemy_name(name: String) -> void:
-	enemy_name = name
+func set_enemy_name(new_name: String) -> void:
+	enemy_name = new_name
 
 func _ready():
 	play_idle()
@@ -86,19 +86,42 @@ func _play_persona_attack(is_special: bool) -> bool:
 	if "浣熊" in enemy_name:
 		_play_raccoon_attack(is_special)
 		return true
+	if "鲶鱼" in enemy_name:
+		_play_catfish_attack(is_special)
+		return true
+	if "螃蟹" in enemy_name:
+		_play_crab_attack(is_special)
+		return true
 
-	# 第二阶段：深水区
+	# 第一阶段精英 + Boss
 	if "监控猿" in enemy_name or "监控" in enemy_name:
 		_play_monkey_attack(is_special)
 		return true
+	if "摸鱼猫" in enemy_name or "猫主管" in enemy_name:
+		_play_cat_supervisor_attack(is_special)
+		return true
+	if "野猪" in enemy_name or "经理" in enemy_name:
+		_play_boar_manager_attack(is_special)
+		return true
+
+	# 第二阶段：深水区
 	if "树懒" in enemy_name:
 		_play_sloth_attack(is_special)
 		return true
 	if "审计" in enemy_name:
 		_play_audit_hound_attack(is_special)
 		return true
+	if "镰鼬" in enemy_name or "裁员" in enemy_name:
+		_play_weasel_attack(is_special)
+		return true
+	if "鲸" in enemy_name or "年终" in enemy_name:
+		_play_whale_attack(is_special)
+		return true
 
-	# 第三阶段：天花板
+	# 第二阶段精英
+	if "秃鹫" in enemy_name or "外包" in enemy_name:
+		_play_vulture_attack(is_special)
+		return true
 	if "毒蛇" in enemy_name:
 		_play_viper_attack(is_special)
 		return true
@@ -167,6 +190,177 @@ func _play_raccoon_attack(is_special: bool):
 	t.parallel().tween_property(self, "rotation_degrees", 0.0, 0.2)
 	t.parallel().tween_property(self, "scale", original_scale, 0.2)
 	t.parallel().tween_property(self, "modulate", Color.WHITE, 0.2)
+	t.finished.connect(play_idle)
+
+
+func _play_catfish_attack(is_special: bool):
+	# 老油条鲶鱼：滑溜溜的水平波动游动 + 甩尾攻击
+	if idle_tween: idle_tween.kill()
+	var t = create_tween()
+	var wave_amp = 50 if is_special else 35
+	var tail_swipe = 75 if is_special else 55
+	# 蓄力：身体微微S型弯曲
+	t.tween_property(self, "rotation_degrees", -8.0, 0.12)
+	t.parallel().tween_property(self, "modulate", Color(0.8, 1.3, 1.8), 0.12)
+	# 波浪游动：左右波动
+	t.tween_property(self, "position:x", original_pos.x - wave_amp, 0.1).set_trans(Tween.TRANS_SINE)
+	t.parallel().tween_property(self, "rotation_degrees", 6.0, 0.1)
+	t.tween_property(self, "position:x", original_pos.x + wave_amp, 0.1).set_trans(Tween.TRANS_SINE)
+	t.parallel().tween_property(self, "rotation_degrees", -7.0, 0.1)
+	# 甩尾重击：向前冲刺
+	t.tween_property(self, "position:y", original_pos.y + tail_swipe, 0.08).set_trans(Tween.TRANS_EXPO)
+	t.parallel().tween_property(self, "scale", original_scale * 1.12, 0.08)
+	t.parallel().tween_property(self, "rotation_degrees", 12.0, 0.08)
+	# 回弹
+	t.tween_property(self, "position", original_pos, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(self, "rotation_degrees", 0.0, 0.25)
+	t.parallel().tween_property(self, "scale", original_scale, 0.25)
+	t.parallel().tween_property(self, "modulate", Color.WHITE, 0.25)
+	t.finished.connect(play_idle)
+
+
+func _play_crab_attack(is_special: bool):
+	# 打印机螃蟹：机械式横向钳击 + 卡纸抖动
+	if idle_tween: idle_tween.kill()
+	var t = create_tween()
+	var side_step = 60 if is_special else 45
+	var pinch_loops = 4 if is_special else 3
+	# 侧步移动（螃蟹横行）
+	t.tween_property(self, "position:x", original_pos.x + side_step, 0.12).set_trans(Tween.TRANS_QUAD)
+	t.parallel().tween_property(self, "modulate", Color(1.4, 1.4, 1.4), 0.12)
+	# 卡纸抖动：快速上下震颤
+	for i in range(pinch_loops):
+		t.tween_property(self, "position:y", original_pos.y + 8, 0.04)
+		t.parallel().tween_property(self, "rotation_degrees", 3.0 if i % 2 == 0 else -3.0, 0.04)
+		t.tween_property(self, "position:y", original_pos.y - 8, 0.04)
+	# 钳击冲刺
+	t.tween_property(self, "position:y", original_pos.y + 70, 0.08).set_trans(Tween.TRANS_EXPO)
+	t.parallel().tween_property(self, "scale", original_scale * 1.1, 0.08)
+	# 回位
+	t.tween_property(self, "position", original_pos, 0.22).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(self, "rotation_degrees", 0.0, 0.22)
+	t.parallel().tween_property(self, "scale", original_scale, 0.22)
+	t.parallel().tween_property(self, "modulate", Color.WHITE, 0.22)
+	t.finished.connect(play_idle)
+
+
+func _play_cat_supervisor_attack(is_special: bool):
+	# 摸鱼猫主管：懒洋洋地伸展 + 突然爪击
+	if idle_tween: idle_tween.kill()
+	var t = create_tween()
+	var stretch = 1.18 if is_special else 1.12
+	var pounce = 85 if is_special else 65
+	# 伸懒腰：横向拉伸 + 轻微发光
+	t.tween_property(self, "scale:x", original_scale.x * stretch, 0.3).set_trans(Tween.TRANS_SINE)
+	t.parallel().tween_property(self, "position:y", original_pos.y - 15, 0.3)
+	t.parallel().tween_property(self, "modulate", Color(1.5, 1.3, 0.9), 0.3)
+	# 猛然扑击
+	t.tween_property(self, "position:y", original_pos.y + pounce, 0.09).set_trans(Tween.TRANS_EXPO)
+	t.parallel().tween_property(self, "scale", original_scale * 1.15, 0.09)
+	t.parallel().tween_property(self, "rotation_degrees", 8.0, 0.09)
+	# 轻盈落地
+	t.tween_property(self, "position", original_pos, 0.28).set_trans(Tween.TRANS_BOUNCE)
+	t.parallel().tween_property(self, "rotation_degrees", 0.0, 0.28)
+	t.parallel().tween_property(self, "scale", original_scale, 0.28)
+	t.parallel().tween_property(self, "modulate", Color.WHITE, 0.28)
+	t.finished.connect(play_idle)
+
+
+func _play_boar_manager_attack(is_special: bool):
+	# 部门经理野猪：猛冲践踏 + 重压震地
+	if idle_tween: idle_tween.kill()
+	var t = create_tween()
+	var charge_dist = 95 if is_special else 75
+	var stomp_loops = 3 if is_special else 2
+	# 刨地蓄力
+	t.tween_property(self, "position:y", original_pos.y - 25, 0.18).set_trans(Tween.TRANS_QUAD)
+	t.parallel().tween_property(self, "scale", original_scale * 0.92, 0.18)
+	t.parallel().tween_property(self, "modulate", Color(1.8, 0.7, 0.7), 0.18)
+	# 猛冲
+	t.tween_property(self, "position:y", original_pos.y + charge_dist, 0.1).set_trans(Tween.TRANS_EXPO)
+	t.parallel().tween_property(self, "scale", original_scale * 1.2, 0.1)
+	# 践踏震动
+	for i in range(stomp_loops):
+		t.tween_property(self, "scale:y", original_scale.y * 0.95, 0.05)
+		t.parallel().tween_property(self, "position:y", original_pos.y + 5, 0.05)
+		t.tween_property(self, "scale:y", original_scale.y * 1.05, 0.05)
+		t.parallel().tween_property(self, "position:y", original_pos.y, 0.05)
+	# 回位
+	t.tween_property(self, "position", original_pos, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(self, "scale", original_scale, 0.3)
+	t.parallel().tween_property(self, "modulate", Color.WHITE, 0.3)
+	t.finished.connect(play_idle)
+
+
+func _play_weasel_attack(is_special: bool):
+	# 裁员镰鼬：鬼魅闪烁 + 风刃斩击
+	if idle_tween: idle_tween.kill()
+	var t = create_tween()
+	var blink_dist = 70 if is_special else 50
+	var slash_loops = 3 if is_special else 2
+	# 消失（淡出 + 缩小）
+	t.tween_property(self, "modulate:a", 0.2, 0.08)
+	t.parallel().tween_property(self, "scale", original_scale * 0.7, 0.08)
+	# 闪烁斩击：快速左右交错
+	for i in range(slash_loops):
+		var dir = 1 if i % 2 == 0 else -1
+		t.tween_property(self, "position", original_pos + Vector2(dir * blink_dist, 20 + i * 10), 0.06)
+		t.parallel().tween_property(self, "rotation_degrees", dir * 15.0, 0.06)
+		t.parallel().tween_property(self, "modulate", Color(1.2, 1.2, 1.8, 1.0), 0.06)
+	# 最后一击：正面冲刺
+	t.tween_property(self, "position:y", original_pos.y + 80, 0.08).set_trans(Tween.TRANS_EXPO)
+	t.parallel().tween_property(self, "scale", original_scale * 1.15, 0.08)
+	# 回位
+	t.tween_property(self, "position", original_pos, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(self, "rotation_degrees", 0.0, 0.25)
+	t.parallel().tween_property(self, "scale", original_scale, 0.25)
+	t.parallel().tween_property(self, "modulate", Color.WHITE, 0.25)
+	t.finished.connect(play_idle)
+
+
+func _play_whale_attack(is_special: bool):
+	# 年终总结鲸：压迫式下沉 + 海浪拍击
+	if idle_tween: idle_tween.kill()
+	var t = create_tween()
+	var rise = 40 if is_special else 30
+	var crash = 100 if is_special else 80
+	# 缓慢上浮（蓄力感）
+	t.tween_property(self, "position:y", original_pos.y - rise, 0.35).set_trans(Tween.TRANS_SINE)
+	t.parallel().tween_property(self, "scale", original_scale * 1.08, 0.35)
+	t.parallel().tween_property(self, "modulate", Color(0.9, 1.2, 1.6), 0.35)
+	# 重压下砸
+	t.tween_property(self, "position:y", original_pos.y + crash, 0.12).set_trans(Tween.TRANS_EXPO)
+	t.parallel().tween_property(self, "scale", original_scale * 1.25, 0.12)
+	t.parallel().tween_property(self, "modulate", Color(1.8, 1.8, 2.2), 0.12)
+	# 回弹 + 余波震荡
+	t.tween_property(self, "position:y", original_pos.y - 10, 0.15).set_trans(Tween.TRANS_BOUNCE)
+	t.tween_property(self, "position:y", original_pos.y, 0.2).set_trans(Tween.TRANS_SINE)
+	t.parallel().tween_property(self, "scale", original_scale, 0.2)
+	t.parallel().tween_property(self, "modulate", Color.WHITE, 0.2)
+	t.finished.connect(play_idle)
+
+
+func _play_vulture_attack(is_special: bool):
+	# 外包秃鹫：盘旋俯冲 + 啄食
+	if idle_tween: idle_tween.kill()
+	var t = create_tween()
+	var orbit_radius = 55 if is_special else 40
+	var dive = 95 if is_special else 75
+	# 盘旋蓄力：绕圆轨迹
+	t.tween_property(self, "position:x", original_pos.x - orbit_radius, 0.15).set_trans(Tween.TRANS_SINE)
+	t.parallel().tween_property(self, "position:y", original_pos.y - 20, 0.15)
+	t.parallel().tween_property(self, "rotation_degrees", -10.0, 0.15)
+	t.tween_property(self, "position:x", original_pos.x + orbit_radius, 0.15).set_trans(Tween.TRANS_SINE)
+	t.parallel().tween_property(self, "rotation_degrees", 10.0, 0.15)
+	# 俯冲啄击
+	t.tween_property(self, "position:y", original_pos.y + dive, 0.1).set_trans(Tween.TRANS_EXPO)
+	t.parallel().tween_property(self, "scale", original_scale * 1.18, 0.1)
+	t.parallel().tween_property(self, "rotation_degrees", 0.0, 0.1)
+	t.parallel().tween_property(self, "modulate", Color(1.5, 1.0, 0.8), 0.1)
+	# 回位
+	t.tween_property(self, "position", original_pos, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(self, "scale", original_scale, 0.28)
+	t.parallel().tween_property(self, "modulate", Color.WHITE, 0.28)
 	t.finished.connect(play_idle)
 
 

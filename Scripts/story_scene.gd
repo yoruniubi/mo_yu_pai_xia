@@ -29,7 +29,7 @@ const STORY_LINES: Array = [
 	"这是你的武器。",
 	"这是你的离职之路。",
 	"",
-	"── 10 关，打穿整个职场。──",
+	"── 30 关，打穿整个职场。──",
 ]
 
 # ---------- 信号 ----------
@@ -42,11 +42,14 @@ var _skip_btn: Button
 var _continue_btn: Button
 var _progress_bar: ProgressBar
 
+# ---------- 缩放 ----------
+var _scale_factor: float = 1.0
+
 # ---------- 打字机状态 ----------
 var _line_idx: int = 0
 var _full_text: String = ""
 var _shown_text: String = ""
-var _timer: float = 0.0
+# var _timer: float = 0.0
 var _typing: bool = false
 
 const CHAR_DELAY: float = 0.035   # 每字间隔(秒)
@@ -59,6 +62,10 @@ var _recap_mode: bool = false
 
 # ── 入口 ─────────────────────────────────────────────────────
 func _ready() -> void:
+	# 根据屏幕尺寸计算缩放比例
+	var screen_size = get_viewport_rect().size
+	_scale_factor = min(screen_size.x / 1080.0, screen_size.y / 1920.0)
+
 	_build_ui()
 	if _recap_mode:
 		_show_all_instantly()
@@ -82,12 +89,12 @@ func _build_ui() -> void:
 	_progress_bar.anchor_left = 0.1
 	_progress_bar.anchor_right = 0.9
 	_progress_bar.anchor_top = 0.0
-	_progress_bar.offset_top = 20.0
-	_progress_bar.offset_bottom = 36.0
+	_progress_bar.offset_top = 20.0 * _scale_factor
+	_progress_bar.offset_bottom = (20.0 + 20.0) * _scale_factor
 	_progress_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var bar_style = StyleBoxFlat.new()
 	bar_style.bg_color = Color(0.2, 0.8, 0.6, 0.8)
-	bar_style.set_corner_radius_all(4)
+	bar_style.set_corner_radius_all(int(4 * _scale_factor))
 	_progress_bar.add_theme_stylebox_override("fill", bar_style)
 	add_child(_progress_bar)
 	_progress_bar.visible = not _recap_mode
@@ -95,10 +102,10 @@ func _build_ui() -> void:
 	# 文字区域（留边距）
 	var margin = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 60)
-	margin.add_theme_constant_override("margin_right", 60)
-	margin.add_theme_constant_override("margin_top", 80)
-	margin.add_theme_constant_override("margin_bottom", 130)
+	margin.add_theme_constant_override("margin_left", int(60 * _scale_factor))
+	margin.add_theme_constant_override("margin_right", int(60 * _scale_factor))
+	margin.add_theme_constant_override("margin_top", int(80 * _scale_factor))
+	margin.add_theme_constant_override("margin_bottom", int(130 * _scale_factor))
 	add_child(margin)
 
 	_label = RichTextLabel.new()
@@ -107,18 +114,21 @@ func _build_ui() -> void:
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_label.add_theme_font_size_override("normal_font_size", 28)
+	_label.add_theme_font_size_override("normal_font_size", int(38 * _scale_factor))
 	_label.add_theme_color_override("default_color", Color(0.92, 0.90, 0.85))
 	margin.add_child(_label)
 
 	# 「跳过」按钮（右上角，仅首次模式）
 	_skip_btn = _make_button("跳过 ▶▶")
+	var skip_w := 220 * _scale_factor
+	var skip_h := 65.0 * _scale_factor
+	var skip_margin := 20.0 * _scale_factor
 	_skip_btn.anchor_right = 1.0
 	_skip_btn.anchor_top = 0.0
-	_skip_btn.offset_left = -160.0
-	_skip_btn.offset_right = -20.0
-	_skip_btn.offset_top = 16.0
-	_skip_btn.offset_bottom = 56.0
+	_skip_btn.offset_left = -(skip_w + skip_margin)
+	_skip_btn.offset_right = -skip_margin
+	_skip_btn.offset_top = skip_margin
+	_skip_btn.offset_bottom = skip_margin + skip_h
 	_skip_btn.pressed.connect(_on_skip_pressed)
 	add_child(_skip_btn)
 	_skip_btn.visible = not _recap_mode
@@ -130,10 +140,13 @@ func _build_ui() -> void:
 	_continue_btn.anchor_right = 0.5
 	_continue_btn.anchor_top = 1.0
 	_continue_btn.anchor_bottom = 1.0
-	_continue_btn.offset_left = -160.0
-	_continue_btn.offset_right = 160.0
-	_continue_btn.offset_top = -90.0
-	_continue_btn.offset_bottom = -30.0
+	var cont_w := 460.0 * _scale_factor
+	var cont_h := 90.0 * _scale_factor
+	var cont_margin := 50.0 * _scale_factor
+	_continue_btn.offset_left = -cont_w / 2.0
+	_continue_btn.offset_right = cont_w / 2.0
+	_continue_btn.offset_top = -(cont_h + cont_margin)
+	_continue_btn.offset_bottom = -cont_margin
 	_continue_btn.pressed.connect(_on_continue_pressed)
 	add_child(_continue_btn)
 	_continue_btn.visible = false
@@ -143,16 +156,16 @@ func _make_button(text: String) -> Button:
 	btn.text = text
 	var s = StyleBoxFlat.new()
 	s.bg_color = Color(0.15, 0.55, 0.45, 0.9)
-	s.set_corner_radius_all(10)
-	s.border_width_bottom = 2
+	s.set_corner_radius_all(int(10 * _scale_factor))
+	s.border_width_bottom = int(2 * _scale_factor)
 	s.border_color = Color(0.3, 0.9, 0.7, 0.7)
 	btn.add_theme_stylebox_override("normal", s)
 	var sh = StyleBoxFlat.new()
 	sh.bg_color = Color(0.22, 0.75, 0.60, 1.0)
-	sh.set_corner_radius_all(10)
+	sh.set_corner_radius_all(int(10 * _scale_factor))
 	btn.add_theme_stylebox_override("hover", sh)
 	btn.add_theme_color_override("font_color", Color.WHITE)
-	btn.add_theme_font_size_override("font_size", 26)
+	btn.add_theme_font_size_override("font_size", int(34 * _scale_factor))
 	return btn
 
 # ── 打字机模式 ───────────────────────────────────────────────
@@ -176,6 +189,8 @@ func _type_next_line() -> void:
 		_shown_text += "\n"
 		_label.text = _shown_text
 		await get_tree().create_timer(LINE_PAUSE * 0.6).timeout
+		if not _typing:
+			return
 		_type_next_line()
 		return
 

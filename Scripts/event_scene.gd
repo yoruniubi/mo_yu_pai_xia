@@ -6,10 +6,12 @@ extends Control
 @onready var next_button = %NextButton
 
 func _ready():
+	var bgm = preload("res://Assets/Music/event_bgm.mp3")
+	BgmManager.play_music(bgm)
 	next_button.hide()
 	_setup_ui_styles()
 	_create_floating_decorations()
-	_setup_deck_button()
+	_setup_header_buttons()
 	if has_node("%ResignationBar"):
 		%ResignationBar.value = GameManager.current_level
 	
@@ -129,19 +131,51 @@ func _style_resignation_bar(bar: ProgressBar):
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
-func _setup_deck_button():
-	var deck_btn = Button.new()
-	deck_btn.text = " 🗃️ 查看牌库 "
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color("#fdf5e6")
-	style.set_corner_radius_all(10)
-	style.shadow_size = 2
-	deck_btn.add_theme_stylebox_override("normal", style)
-	deck_btn.add_theme_color_override("font_color", Color("#4a4a4a"))
-	deck_btn.position = Vector2(20, 20)
-	deck_btn.custom_minimum_size = Vector2(140, 40)
-	add_child(deck_btn)
-	deck_btn.pressed.connect(func(): GameManager.show_deck_viewer(self))
+func _setup_header_buttons() -> void:
+	var bb = Button.new()
+	bb.text = "↩"
+	bb.offset_left = 21
+	bb.offset_top = 36
+	bb.offset_right = 105
+	bb.offset_bottom = 120
+	bb.add_theme_font_size_override("font_size", 39)
+	_style_header_button(bb)
+	bb.pressed.connect(func(): get_tree().change_scene_to_file("res://Scenes/main_menu.tscn"))
+	add_child(bb)
+
+	var db = Button.new()
+	db.text = "🗃️"
+	db.anchor_left = 1.0
+	db.anchor_right = 1.0
+	db.offset_left = -105
+	db.offset_top = 36
+	db.offset_right = -21
+	db.offset_bottom = 120
+	db.add_theme_font_size_override("font_size", 36)
+	_style_header_button(db)
+	db.pressed.connect(func(): GameManager.show_deck_viewer(self))
+	add_child(db)
+
+func _style_header_button(btn: Button) -> void:
+	btn.z_index = 200
+	var normal = StyleBoxFlat.new()
+	normal.bg_color = Color("#2F4654")
+	normal.set_corner_radius_all(10)
+	normal.border_width_left = 2
+	normal.border_width_top = 2
+	normal.border_width_right = 2
+	normal.border_width_bottom = 2
+	normal.border_color = Color("#F1D39A55")
+	btn.add_theme_stylebox_override("normal", normal)
+
+	var hover = normal.duplicate()
+	hover.bg_color = Color("#416174")
+	btn.add_theme_stylebox_override("hover", hover)
+
+	var pressed = normal.duplicate()
+	pressed.bg_color = Color("#20313B")
+	btn.add_theme_stylebox_override("pressed", pressed)
+	btn.add_theme_color_override("font_color", Color("#F8F1E3"))
 
 func _create_button_style(color_hex: String, hover_hex: String) -> Dictionary:
 	var normal = StyleBoxFlat.new()
@@ -188,203 +222,222 @@ func setup_random_event(event_id: String):
 
 	match event_id:
 		"pantry_gossip":
-			add_option("[听听看] 获得随机卡，下一战 AP +1", func():
+			add_option("[听听看] 获得随机卡 + 🪙30", func():
 				var rewards = GameManager.get_random_reward_cards(1)
 				if rewards.size() > 0:
 					GameManager.player_deck.append(rewards[0])
-				GameManager.next_battle_ap_bonus += 1
-				finish_event("你听到了猛料，顺手学了一招，下一战 AP +1。")
+				GameManager.mo_yu_coins += 30
+				finish_event("你听到了猛料，顺手学了一招，还捡到了 30 摸鱼币。")
 			)
 			add_option("[走开] 回复 15 压力", func():
 				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 15)
 				finish_event("你躲开了八卦，压力 -15。")
 			)
 		"ppt_help":
-			add_option("[帮改PPT] 删掉 1 张基础卡，首张牌 0 费", func():
+			add_option("[帮改PPT] 获得 🪙50 + 删 1 张基础卡", func():
 				_remove_basic_card(1)
-				GameManager.first_card_free = true
-				finish_event("你帮完PPT，获得了首张牌 0 费的被动。")
+				GameManager.mo_yu_coins += 50
+				finish_event("你帮完PPT，同事给了 50 摸鱼币作为答谢，顺便扔掉一张废卡。")
 			)
-			add_option("[拒绝] 压力 +1，获得 1 张随机卡", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 1)
+			add_option("[拒绝] 获得 1 张随机卡 + HP 上限 +5", func():
 				var rewards = GameManager.get_random_reward_cards(1)
 				if rewards.size() > 0:
 					GameManager.player_deck.append(rewards[0])
-				finish_event("你拒绝了求助，但顺手学了一招，压力 +1。")
+				GameManager.max_player_hp += 5
+				GameManager.player_hp += 5
+				finish_event("你拒绝了求助，专注提升自己，HP 上限 +5。")
 			)
 		"emoji_misfire":
-			add_option("[发表情包] 随机得 1 张高级卡，Boss 伤害 +1", func():
+			add_option("[发表情包] 获得 1 张史诗卡 + 🪙20", func():
 				_add_random_high_cost_card()
-				GameManager.next_battle_enemy_damage_bonus += 1
-				finish_event("你顺走了一张高级卡，老板稍微有点不悦。")
+				GameManager.mo_yu_coins += 20
+				finish_event("你发表情包活跃了气氛，顺走一张高级卡和 20 摸鱼币。")
 			)
-			add_option("[及时撤回] 无事发生", func():
-				finish_event("你及时撤回，风平浪静。")
+			add_option("[及时撤回] 🪙10，无事发生", func():
+				GameManager.mo_yu_coins += 10
+				finish_event("你及时撤回，低调地捡了 10 摸鱼币。")
 			)
 		"elevator_boss":
-			add_option("[大声问好] 下场初始 AP +1", func():
-				GameManager.next_battle_ap_bonus += 1
-				finish_event("老板对你印象不错，初始 AP +1。")
+			add_option("[大声问好] 获得 🪙40", func():
+				GameManager.mo_yu_coins += 40
+				finish_event("老板对你印象不错，随手给了 40 摸鱼币的绩效奖励。")
 			)
-			add_option("[低头快走] 压力 +2", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 2)
-				finish_event("你低头快走，压力 +2。") 
+			add_option("[低头快走] HP 上限 +3", func():
+				GameManager.max_player_hp += 3
+				GameManager.player_hp += 3
+				finish_event("你低调避开，默默锻炼了抗压能力，HP 上限 +3。")
 			)
 		"printer_jam":
-			add_option("[踢一脚] 首回合爆炸伤害", func():
-				GameManager.start_battle_burst_damage = 25
-				finish_event("你踢了一脚，首回合爆炸伤害将触发。")
+			add_option("[踢一脚] 获得 🪙25", func():
+				GameManager.mo_yu_coins += 25
+				finish_event("你踢了一脚，打印机居然好了，行政给了 25 摸鱼币。")
 			)
-			add_option("[清理] 升级 1 张基础卡", func():
+			add_option("[清理] 升级 1 张基础卡（✨ 数值 +50%）", func():
 				_upgrade_random_basic_card(1)
-				finish_event("你清理完毕，基础卡获得强化。")
+				finish_event("你清理完毕，基础卡获得 ✨ 升级强化！")
 			)
 		"ac_break":
-			add_option("[忍受] 下场战斗初始压力 +3", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 3)
-				finish_event("空调坏了，你感到有些胸闷。")
+			add_option("[忍受] HP 上限 +8", func():
+				GameManager.max_player_hp += 8
+				GameManager.player_hp += 8
+				finish_event("你在闷热中磨练了意志，HP 上限 +8。")
 			)
-			add_option("[蹭空调] 获得 1 张闪避卡", func():
+			add_option("[蹭空调] 获得 1 张闪避卡 + 🪙15", func():
 				_add_evade_card()
-				finish_event("你蹭到了清凉，获得一张闪避卡。")
+				GameManager.mo_yu_coins += 15
+				finish_event("你蹭到了清凉，获得一张闪避卡和 15 摸鱼币。")
 			)
 		"mystery_parcel":
-			add_option("[拆开] 50% 免控耳机 / 50% 塞 1 张垃圾卡", func():
+			add_option("[拆开] 50% 稀有卡 / 50% 塞 1 张垃圾卡", func():
 				if randf() < 0.5:
-					_add_invincible_card()
-					finish_event("你拆到了免控耳机，获得无敌卡！")
+					_add_random_high_cost_card()
+					finish_event("你拆到了一张稀有卡！")
 				else:
 					_add_junk_cards(1)
 					finish_event("你拆到了垃圾，卡组被轻微污染。")
 			)
-			add_option("[退回] 压力 -5", func():
-				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 5)
-				finish_event("你退回快递，压力 -5。")
+			add_option("[退回] 获得 🪙20", func():
+				GameManager.mo_yu_coins += 20
+				finish_event("你退回快递，获得了 20 摸鱼币的运费补偿。")
 			)
 		"elevator_encounter":
-			add_option("[挤进去] 压力 +3", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 3)
-				finish_event("拥挤的电梯让你压力 +3。")
+			add_option("[挤进去] 获得 🪙15", func():
+				GameManager.mo_yu_coins += 15
+				finish_event("你挤进了电梯，顺手捡了同事掉的 15 摸鱼币。")
 			)
-			add_option("[等下一趟] 获得 1 张 ⏳ 连招卡", func():
+			add_option("[等下一趟] 获得 1 张 ⏳ 待岗卡", func():
 				_add_wait_card()
-				finish_event("你等待下一趟，获得一张 ⏳ 连招卡。")
+				finish_event("你等待下一趟，获得一张 ⏳ 待岗卡。")
 			)
 		"power_outage":
-			add_option("[直接下班] 立即胜利，无奖励", func():
-				GameManager.skip_next_battle = true
-				GameManager.skip_rewards_battles = max(1, GameManager.skip_rewards_battles + 1)
-				finish_event("停电下班！下一场战斗直接跳过。")
+			add_option("[直接下班] HP 回复 30 + 🪙30", func():
+				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 30)
+				GameManager.mo_yu_coins += 30
+				finish_event("停电下班！你回家休息了，HP 回复 30，还省了 30 摸鱼币交通费。")
 			)
-			add_option("[开备用电源] 压力 +3，下场伤害翻倍", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 3)
-				GameManager.next_battle_damage_multiplier = 2.0
-				finish_event("你开了电源，下场伤害翻倍。")
+			add_option("[开备用电源] HP 上限 +10", func():
+				GameManager.max_player_hp += 10
+				GameManager.player_hp += 10
+				finish_event("你启动了备用电源，在黑暗中磨练了意志，HP 上限 +10。")
 			)
 		"blue_screen":
-			add_option("[心态崩了] 压力 +5，获 1 张 0 费神卡", func():
+			add_option("[心态崩了] 获 1 张 0 费神卡，HP -5", func():
 				GameManager.player_hp = max(0, GameManager.player_hp - 5)
 				_add_random_card_cost_zero()
-				finish_event("你心态崩了，获得一张 0 费神卡。")
+				finish_event("你心态崩了，但灵感迸发，获得一张 0 费神卡。")
 			)
-			add_option("[重启] 删 1 张牌", func():
+			add_option("[重启] 删 1 张牌 + 🪙15", func():
 				_remove_random_card(1)
-				finish_event("你重启了系统，删掉一张牌。")
+				GameManager.mo_yu_coins += 15
+				finish_event("你重启了系统，删掉一张废卡，IT 部补偿了 15 摸鱼币。")
 			)
 		"old_notes":
-			add_option("[学习] 获 1 个随机 Combo 配方", func():
-				finish_event("你学会了一个新的连招配方。")
+			add_option("[学习] 获得 2 张随机卡", func():
+				var rewards = GameManager.get_random_reward_cards(2)
+				for r in rewards:
+					GameManager.player_deck.append(r)
+				finish_event("你认真学习了前任的笔记，获得 2 张随机卡。")
 			)
-			add_option("[丢弃] 压力上限 +5", func():
-				GameManager.max_player_hp += 5
-				GameManager.player_hp += 5
-				finish_event("你抛下过去，压力上限 +5。")
+			add_option("[丢弃] HP 上限 +8", func():
+				GameManager.max_player_hp += 8
+				GameManager.player_hp += 8
+				finish_event("你抛下过去的包袱，HP 上限 +8。")
 			)
 		"checkup":
-			add_option("[不看] 压力 -10", func():
-				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 10)
-				finish_event("你选择不看，压力 -10。")
+			add_option("[不看] 回复 20 HP", func():
+				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 20)
+				finish_event("你选择不看报告，心情愉快，HP 回复 20。")
 			)
-			add_option("[看细节] 压力 +3，本局回血翻倍", func():
+			add_option("[看细节] HP 上限 +10，HP -3", func():
 				GameManager.player_hp = max(0, GameManager.player_hp - 3)
-				GameManager.heal_multiplier = 2.0
-				finish_event("你认真阅读，回血翻倍。")
+				GameManager.max_player_hp += 10
+				GameManager.player_hp += 10
+				finish_event("你认真阅读了体检报告，开始养生，HP 上限 +10。")
 			)
 		"bathroom_break":
-			add_option("[刷视频] 压力回复 50", func():
-				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 50)
-				finish_event("你摸鱼成功，压力回复 50。")
+			add_option("[刷视频] HP 回复 40", func():
+				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 40)
+				finish_event("你摸鱼成功，HP 回复 40。")
 			)
-			add_option("[抽烟] 攻击 +5", func():
-				GameManager.attack_bonus_flat += 5
-				finish_event("你抽了根烟，攻击 +5。")
+			add_option("[处理私事] 获得 🪙35", func():
+				GameManager.mo_yu_coins += 35
+				finish_event("你在厕所处理了一些私事，赚了 35 摸鱼币外快。")
 			)
 		"caught_slacking":
-			add_option("[推卸给AI] 随机 1 张卡变随机 Emoji，并获得 1 张高级卡", func():
-				_randomize_cards(1)
+			add_option("[推卸给AI] 获得 1 张高级卡 + 🪙20", func():
 				_add_random_high_cost_card()
-				finish_event("你把锅甩给AI，卡组小幅调整，并顺走了一张高级卡。")
+				GameManager.mo_yu_coins += 20
+				finish_event("你把锅甩给AI，顺走一张高级卡和 20 摸鱼币。")
 			)
-			add_option("[老实认错] 移除 1 张基础卡，压力 -5", func():
+			add_option("[老实认错] 删 1 张基础卡，HP 回复 10", func():
 				_remove_basic_card(1)
-				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 5)
-				finish_event("你认错了，删掉一张基础卡，压力 -5。")
+				GameManager.player_hp = min(GameManager.max_player_hp, GameManager.player_hp + 10)
+				finish_event("你认错了，删掉一张废卡，主管反而安慰了你，HP 回复 10。")
 			)
 		"side_job":
-			add_option("[接单] 下 1 场无卡牌奖励，压力上限 +15", func():
-				GameManager.skip_rewards_battles = max(GameManager.skip_rewards_battles, 1)
-				GameManager.max_player_hp += 15
-				GameManager.player_hp += 15
-				finish_event("你接了私活，压力上限 +15。")
+			add_option("[接单] 获得 🪙80，HP 上限 +10", func():
+				GameManager.mo_yu_coins += 80
+				GameManager.max_player_hp += 10
+				GameManager.player_hp += 10
+				finish_event("你接了私活，赚了 80 摸鱼币，顺带锻炼了抗压能力。")
 			)
-			add_option("[拒绝] 升级 2 张卡", func():
+			add_option("[拒绝] 升级 2 张卡（✨ 数值 +50%）", func():
 				_upgrade_random_card(2)
-				finish_event("你拒绝私活，专注强化卡组。")
+				finish_event("你拒绝私活，专注强化卡组，2 张卡获得 ✨ 升级！")
 			)
 		"trash_treasure":
-			add_option("[翻找] 获得 📊 数据卡", func():
-				_add_data_card()
-				finish_event("你找到了 📊 数据卡。")
+			add_option("[翻找] 50% 稀有卡 / 50% 🪙30", func():
+				if randf() < 0.5:
+					_add_random_high_cost_card()
+					finish_event("你翻到了一张被丢弃的稀有卡！")
+				else:
+					GameManager.mo_yu_coins += 30
+					finish_event("你翻到了 30 摸鱼币的零钱。")
 			)
-			add_option("[不看] 无事发生", func():
-				finish_event("你选择无视垃圾桶。")
+			add_option("[不看] HP 上限 +10", func():
+				GameManager.max_player_hp += 10
+				GameManager.player_hp += 10
+				finish_event("你选择无视，但保持优雅本身也是一种修行，HP 上限 +10。")
 			)
 		"mass_test":
-			add_option("[排队] 获得 1 回合无敌卡", func():
-				_add_invincible_card()
-				finish_event("你乖乖排队，获得无敌卡。")
+			add_option("[排队] 获得 1 张护盾卡 + 🪙15", func():
+				_add_shield_card()
+				GameManager.mo_yu_coins += 15
+				finish_event("你乖乖排队，获得护盾卡，顺便捡了 15 摸鱼币。")
 			)
-			add_option("[插队] 压力 +3", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 3)
-				finish_event("你插队成功，但压力 +3。")
+			add_option("[插队] 获得 🪙25", func():
+				GameManager.mo_yu_coins += 25
+				finish_event("你插队成功，省下时间赚了 25 摸鱼币。")
 			)
 		"broken_chair":
-			add_option("[站着办公] 攻击 +3", func():
-				GameManager.attack_bonus_flat += 3
-				finish_event("你站着办公，攻击 +3。")
+			add_option("[站着办公] HP 上限 +5", func():
+				GameManager.max_player_hp += 5
+				GameManager.player_hp += 5
+				finish_event("你站着办公，锻炼了身体，HP 上限 +5。")
 			)
-			add_option("[修椅子] 压力 +3", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 3)
-				finish_event("你修好了椅子，压力 +3。")
+			add_option("[修椅子] 获得 🪙20", func():
+				GameManager.mo_yu_coins += 20
+				finish_event("你修好了椅子，行政感谢你，给了 20 摸鱼币。")
 			)
 		"likes":
-			add_option("[互赞] 随机 1 张卡伤害 +5", func():
-				_upgrade_random_card_damage()
-				finish_event("你互赞了一轮，一张卡伤害 +5。")
+			add_option("[互赞] 升级 1 张随机卡（✨ 数值 +50%）", func():
+				_upgrade_random_card(1)
+				finish_event("你互赞了一轮，一张卡获得 ✨ 升级！")
 			)
-			add_option("[忽略] 无事发生", func():
-				finish_event("你选择无视点赞。")
+			add_option("[忽略] 获得 🪙10", func():
+				GameManager.mo_yu_coins += 10
+				finish_event("你选择无视，但同事还是默默给你转了 10 摸鱼币。")
 			)
 		"boss_promise":
-			add_option("[吃饼] 获得 20 护盾卡，压力 +2", func():
+			add_option("[吃饼] 获得护盾卡 + HP 上限 +5", func():
 				_add_shield_card()
-				GameManager.player_hp = max(0, GameManager.player_hp - 2)
-				finish_event("你吃下了画饼，获得护盾卡，压力 +2。")
+				GameManager.max_player_hp += 5
+				GameManager.player_hp += 5
+				finish_event("你吃下了画饼，获得护盾卡，抗压能力也提升了。")
 			)
-
-			add_option("[不吃] 压力 +1", func():
-				GameManager.player_hp = max(0, GameManager.player_hp - 1)
-				finish_event("你拒绝画饼，压力 +1。")
+			add_option("[不吃] 获得 🪙30", func():
+				GameManager.mo_yu_coins += 30
+				finish_event("你拒绝画饼，老板反而觉得你有主见，给了 30 摸鱼币奖金。")
 			)
 		_:
 			finish_event("你度过了一个平静的随机事件。")
@@ -508,7 +561,7 @@ func add_option(text: String, callback: Callable):
 	btn.add_theme_stylebox_override("pressed", styles.pressed)
 	btn.add_theme_color_override("font_color", Color("#4a4a4a"))
 	btn.add_theme_color_override("font_hover_color", Color("#222222"))
-	btn.add_theme_font_size_override("font_size", 24)
+	btn.add_theme_font_size_override("font_size", 28)
 	
 	btn.pressed.connect(func():
 		# 立即禁用所有选项，防止重复触发
@@ -517,10 +570,10 @@ func add_option(text: String, callback: Callable):
 				child.disabled = true
 		
 		# 点击反馈动画
-		var t = create_tween()
-		t.tween_property(btn, "scale", Vector2(0.95, 0.95), 0.05)
-		t.tween_property(btn, "scale", Vector2(1.0, 1.0), 0.05)
-		t.finished.connect(callback)
+		var t_1 = create_tween()
+		t_1.tween_property(btn, "scale", Vector2(0.95, 0.95), 0.05)
+		t_1.tween_property(btn, "scale", Vector2(1.0, 1.0), 0.05)
+		t_1.finished.connect(callback)
 	)
 	
 	option_container.add_child(btn)
@@ -607,14 +660,17 @@ func _upgrade_random_card_damage():
 	var target = candidates[randi() % candidates.size()]
 	if target.has("value"):
 		target["value"] = int(target["value"]) + 5
-		target["description"] = "%s (强化)" % target.get("description", "")
+		target["description"] = "%s (伤害+5)" % target.get("description", "")
 
 func _upgrade_card(card: Dictionary):
+	# 使用新的升级系统：标记 upgraded + 数值 +50%
+	if card.get("upgraded", false):
+		return  # 已升级过，不再重复升级
+	card["upgraded"] = true
 	if card.has("value"):
-		card["value"] = int(card["value"]) + 5
-	if card.has("cost"):
-		card["cost"] = max(0, int(card["cost"]) - 1)
-	card["description"] = "%s (强化)" % card.get("description", "")
+		card["value"] = int(card["value"] * 1.5)
+	if card.has("description"):
+		card["description"] = card["description"] + "\n✨ 已升级 (数值 +50%)"
 
 func _add_random_high_cost_card():
 	var pool = GameManager.universal_cards.duplicate()

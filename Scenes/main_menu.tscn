@@ -1,7 +1,6 @@
-[gd_scene load_steps=12 format=3 uid="uid://cipmv2357njgl"]
+[gd_scene load_steps=11 format=3 uid="uid://cipmv2357njgl"]
 
 [ext_resource type="Script" uid="uid://rcpxb20kdi5a" path="res://Scripts/main_menu.gd" id="1_06t4h"]
-[ext_resource type="Texture2D" uid="uid://buwjlj2smq701" path="res://Assets/Images/wave.png" id="2_7vrkn"]
 [ext_resource type="Texture2D" uid="uid://ceea5405mo5sn" path="res://Assets/Images/headphone.png" id="3_glbon"]
 [ext_resource type="Texture2D" uid="uid://bav0me1t6sj45" path="res://Assets/Images/coffee_cup.png" id="4_nlkkf"]
 [ext_resource type="Script" uid="uid://cuhchwdb8lnx2" path="res://Scripts/fallingitem.gd" id="4_qe12f"]
@@ -89,20 +88,6 @@ text = "摸鱼牌侠"
 label_settings = SubResource("LabelSettings_rhts7")
 horizontal_alignment = 1
 
-[node name="WaveBack" type="Sprite2D" parent="."]
-visible = false
-texture_repeat = 2
-texture = ExtResource("2_7vrkn")
-centered = false
-region_enabled = true
-
-[node name="WaveFront" type="Sprite2D" parent="."]
-visible = false
-texture_repeat = 2
-texture = ExtResource("2_7vrkn")
-centered = false
-region_enabled = true
-
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 8
@@ -124,10 +109,10 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 55
 text = "新手教学"
 
-[node name="settingsbutton" type="Button" parent="VBoxContainer"]
+[node name="upgradebutton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 55
-text = "设置"
+text = "局外升级"
 
 [node name="exitbutton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
@@ -135,8 +120,7 @@ theme = SubResource("Theme_7vrkn")
 theme_override_font_sizes/font_size = 55
 text = "退出游戏"
 
-
 [connection signal="pressed" from="VBoxContainer/startbutton" to="." method="_on_startbutton_pressed"]
 [connection signal="pressed" from="VBoxContainer/tutorialbutton" to="." method="_on_tutorialbutton_pressed"]
-[connection signal="pressed" from="VBoxContainer/settingsbutton" to="." method="_on_settingsbutton_pressed"]
+[connection signal="pressed" from="VBoxContainer/upgradebutton" to="." method="_on_upgradebutton_pressed"]
 [connection signal="pressed" from="VBoxContainer/exitbutton" to="." method="_on_exitbutton_pressed"]
