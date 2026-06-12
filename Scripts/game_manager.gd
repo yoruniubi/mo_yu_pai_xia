@@ -876,7 +876,7 @@ var universal_cards: Array = [
 	{"name": "存档", "emoji": "💾", "cost": 1, "description": "本回合结束时不弃掉手牌", "type": "save_hand", "rarity": "epic"},
 	{"name": "摸鱼洗手", "emoji": "🧼", "cost": 1, "description": "移除自身所有负面状态", "type": "clean_status", "rarity": "epic"},
 	{"name": "拔电源", "emoji": "🔌", "cost": 2, "description": "造成 50 伤害，立即结束回合", "type": "pull_plug", "value": 50, "rarity": "epic"},
-	{"name": "裁员名单", "emoji": "✂️", "cost": 2, "description": "消耗所有护盾，每点护盾造成 2 倍伤害", "type": "layoff_list", "value": 2, "rarity": "epic"}
+	{"name": "裁员名单", "emoji": "🔪", "cost": 2, "description": "消耗所有护盾，每点护盾造成 2 倍伤害", "type": "layoff_list", "value": 2, "rarity": "epic"}
 ]
 
 # ─────────────────────────────────────────
@@ -960,7 +960,7 @@ var junk_cards = {
 	},
 	"printer_jam": {
 		"name": "打印机卡纸",
-		"emoji": "📄",
+		"emoji": "📰",
 		"cost": 99, # 无法打出
 		"description": "无法打出。打印机螃蟹每塞入3张会造成一次额外伤害。",
 		"type": "junk_printer_jam"

@@ -139,10 +139,12 @@ func _ready():
 	
 	# 3. 初始化玩家 HP
 	hero_hp = GameManager.player_hp
-	if GameManager.current_level == 8:
+	# 小Boss战前自动回满状态（仅在真正的小Boss关触发，而非硬编码关卡号）
+	var is_miniboss = GameManager.has_meta("next_battle_type") and GameManager.get_meta("next_battle_type") == "boss" and GameManager.current_level < 15
+	if is_miniboss:
 		hero_hp = GameManager.max_player_hp
 		GameManager.player_hp = hero_hp
-		spawn_floating_number("第8关备战：状态回满！", false, hero_sprite.global_position + Vector2(0, -120), Color.GREEN)
+		spawn_floating_number("小Boss战备战：状态回满！", false, hero_sprite.global_position + Vector2(0, -120), Color.GREEN)
 	hero_hp_bar.max_value = GameManager.max_player_hp
 	hero_hp_bar.value = hero_hp
 	
@@ -2399,14 +2401,29 @@ func show_victory():
 	if is_battle_over: return
 	is_battle_over = true
 	end_turn_button.disabled = true
-	var _gold_reward = GameManager.grant_battle_gold(GameManager.current_level, false, false)
-	var _meta_points_reward = GameManager.grant_meta_points_for_battle(GameManager.current_level, false, false)
-	level_clear_label.text = "第 %d 关 已突破\n 🪙 +%d 摸鱼币  ·  ⭐ +%d 积分" % [GameManager.current_level, _gold_reward, _meta_points_reward]
+	
+	# 检测是否通关（打完最终 Boss）
+	var is_final_boss = GameManager.current_level >= GameManager.max_levels and "CEO" in enemy_name_label.text
+	
+	var _gold_reward = GameManager.grant_battle_gold(GameManager.current_level, false, is_final_boss)
+	var _meta_points_reward = GameManager.grant_meta_points_for_battle(GameManager.current_level, false, is_final_boss)
+	
+	if is_final_boss:
+		# 最终通关：显示特殊结算文字
+		level_clear_label.text = "恭喜通关！\n成功离职！\n 🪙 +%d 摸鱼币  ·  ⭐ +%d 积分" % [_gold_reward, _meta_points_reward]
+	else:
+		level_clear_label.text = "第 %d 关 已突破\n 🪙 +%d 摸鱼币  ·  ⭐ +%d 积分" % [GameManager.current_level, _gold_reward, _meta_points_reward]
 	
 	# 兼容 boss_stage.tscn 使用 EndingLayer 而非 VictoryLayer
 	var victory_node = get_node_or_null("%VictoryLayer")
 	if not victory_node:
 		victory_node = get_node_or_null("%EndingLayer")
+	
+	if is_final_boss:
+		# 最终通关：直接显示结算画面，不进入奖励选择
+		if victory_node:
+			victory_node.visible = true
+		return
 	
 	if GameManager.skip_rewards_battles > 0:
 		GameManager.skip_rewards_battles -= 1

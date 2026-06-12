@@ -1135,9 +1135,6 @@ func _navigate(nt: String, l: int) -> void:
 			GameManager.pending_event_id = ""
 			GameManager.pending_random_event_id = ""
 			GameManager.set_meta("next_battle_type", "boss")
-			# 小 Boss 在第一阶段（层14）锁定关卡为 8（部门经理野猪）
-			if nt == "miniboss":
-				GameManager.current_level = 8
 			GameManager.load_current_level_scene()
  
 		"evolution":
