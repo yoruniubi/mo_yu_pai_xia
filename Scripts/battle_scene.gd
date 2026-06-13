@@ -2552,7 +2552,7 @@ func _update_enemy_intent():
 	intent_text.remove_theme_color_override("font_color")
 	intent_description.text = ""
 
-	# 优先显示“敌方行动卡”对应意图（与敌方卡组一致）
+	# 优先显示"敌方行动卡"对应意图（与敌方卡组一致）
 	if not current_enemy_action.is_empty():
 		intent_icon.text = current_enemy_action.get("icon", "⚔️")
 		intent_text.text = str(current_enemy_action.get("text", "攻击"))
@@ -2565,25 +2565,61 @@ func _update_enemy_intent():
 
 	# 追加机制提示（不覆盖行动卡意图）
 	var notes: Array[String] = []
+	
+	# CEO：显示当前形态和下回合影响
+	if "CEO" in enemy.name:
+		if has_meta("ceo_state"):
+			var state = get_meta("ceo_state")
+			match state:
+				"lion":
+					notes.append("【狮态】非攻击卡扣血10%")
+				"sheep":
+					notes.append("【羊态】单次伤害上限10")
+				"snake":
+					notes.append("⚠️【蛇态】下回合AP归零！")
+		else:
+			notes.append("即将切换形态")
+	
+	# 外包秃鹫：明确显示AP削减预警
+	if "秃鹫" in enemy.name:
+		if vulture_outsource_stacks > 0:
+			var ap_drain = min(2, vulture_outsource_stacks)
+			notes.append("⚠️ 外包层数%d：下回合AP-%d" % [vulture_outsource_stacks, ap_drain])
+		else:
+			notes.append("开始累积外包层数")
+	
 	if "鹦鹉" in enemy.name:
 		notes.append("复读：锁定序列首位为上回合末尾符号")
 	if "刺猬" in enemy.name:
-		notes.append("倒计时：%d 回合内未打出⌨️连招将受大伤" % hedgehog_turns_left)
+		notes.append("⏰ 倒计时%d：需打出⌨️连招避险" % hedgehog_turns_left)
 	if "浣熊" in enemy.name:
 		notes.append("顺手牵羊：打出2个Emoji后有概率偷走序列")
 	if "审计" in enemy.name:
 		if compliance_rule.is_empty():
-			notes.append("合规规则将于本回合发布")
+			notes.append("即将发布合规规则")
 		elif compliance_rule.type == "ap_parity":
 			notes.append("规则：AP须%s（违规追加伤害）" % ("偶数" if compliance_rule.value == "even" else "奇数"))
 		else:
-			notes.append("规则：颜色≤%d（白色不计，违规追加伤害）" % compliance_rule.value)
+			notes.append("规则：颜色种类≤%d（违规追加伤害）" % compliance_rule.value)
 	if "毒蛇" in enemy.name:
-		notes.append("认知反转：回血/减压会被反转")
+		notes.append("⚠️ 认知反转：回血会变扣血")
 	if "监控猿" in enemy.name:
-		notes.append("监控蓄力：%d" % monkey_surveillance_stacks)
+		notes.append("监控蓄力%d（≥4时锁定槽位）" % monkey_surveillance_stacks)
 	if "九头蛇" in enemy.name:
-		notes.append("若本回合未击破指标，Boss会回血")
+		notes.append("⚠️ 若未击破指标（需%d+伤害），Boss回血40" % hydra_head_hp)
+	if "螃蟹" in enemy.name:
+		notes.append("卡纸计数%d/3（满3触发爆发25伤害）" % crab_jammed_count)
+	if "鲸" in enemy.name:
+		if whale_review_pressure > 0:
+			notes.append("考核压力%d（≥5时塞KPI卡）" % whale_review_pressure)
+	if "树懒" in enemy.name:
+		if hand_cards.size() >= 7:
+			notes.append("⚠️ 手牌≥7：伤害+6")
+	if "镰鼬" in enemy.name:
+		if hand_cards.size() >= 6:
+			notes.append("⚠️ 手牌≥6：裁员伤害+10")
+		if battle_turn_count % 3 == 2:
+			notes.append("下回合：裁掉牌库1张牌")
 
 	if notes.size() > 0:
 		if intent_description.text != "":
